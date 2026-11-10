@@ -1,0 +1,96 @@
+/* Desktop apps (browser, email, messaging, FTP) and the server Services tab.
+   Colours come only from theme/tokens.css. */
+
+.browser, .mail, .chat, .ftp, .services { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+
+.app-form { display: flex; flex-direction: column; gap: var(--space-3); max-width: 720px; }
+.app-form h4, .services h4 { font-size: var(--fs-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.app-row { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: center; gap: var(--space-3); }
+.app-row > span { font-size: var(--fs-sm); color: var(--text-muted); }
+.app-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.app-textarea { width: 100%; resize: vertical; font: inherit; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
+.app-textarea.mono { font-family: var(--font-mono); font-size: var(--fs-sm); }
+.app-error { color: var(--error); font-size: var(--fs-sm); }
+.app-ok { color: var(--success); }
+
+.app-steps { display: flex; flex-direction: column; gap: 6px; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); }
+.app-steps.failed { border-color: color-mix(in srgb, var(--error) 40%, var(--border)); }
+.app-step-list { margin: 0; padding-left: 20px; font-size: var(--fs-sm); color: var(--text-muted); display: flex; flex-direction: column; gap: 2px; }
+
+.app-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.app-table th { text-align: left; font-weight: var(--fw-medium); color: var(--text-muted); padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.app-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.app-table td input { width: 100%; }
+.app-table .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.app-table .actions { text-align: right; white-space: nowrap; }
+.app-table .actions .btn + .btn { margin-left: 6px; }
+
+/* ---------- browser */
+.browser-bar { display: flex; align-items: center; gap: 6px; }
+.browser-url { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--fs-sm); }
+.browser-page { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-height: 260px; padding: var(--space-4) var(--space-5); overflow-wrap: anywhere; }
+.browser-status { margin-bottom: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px dashed var(--border); }
+.browser-doc { line-height: 1.6; max-width: 70ch; }
+.browser-doc h1 { font-size: 1.6rem; margin: 0 0 0.5em; }
+.browser-doc h2 { font-size: 1.3rem; margin: 1em 0 0.4em; }
+.browser-doc h3 { font-size: 1.1rem; margin: 1em 0 0.3em; }
+.browser-doc p, .browser-doc ul, .browser-doc ol, .browser-doc pre, .browser-doc blockquote { margin: 0 0 0.8em; }
+.browser-doc a { color: var(--accent); }
+.browser-doc pre, .browser-doc code { font-family: var(--font-mono); font-size: var(--fs-sm); background: var(--surface-2); border-radius: 4px; }
+.browser-doc pre { padding: var(--space-2) var(--space-3); overflow-x: auto; }
+.browser-doc blockquote { border-left: 3px solid var(--border-strong); padding-left: var(--space-3); color: var(--text-muted); }
+.browser-deadlink { text-decoration: underline dotted; color: var(--text-muted); }
+.browser-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); text-align: center; min-height: 220px; }
+
+/* ---------- email */
+.mail-tabs { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.mail-tabs button { padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: var(--fs-sm); }
+.mail-tabs button.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.mail-tabs button:disabled { opacity: 0.5; }
+.mail-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.mail-list li + li { border-top: 1px solid var(--border); }
+.mail-list button { display: grid; grid-template-columns: minmax(120px, 220px) minmax(0, 1fr); gap: var(--space-3); width: 100%; text-align: left; padding: 10px 12px; border: none; background: var(--surface); color: var(--text); }
+.mail-list button:hover { background: var(--surface-2); }
+.mail-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-read { display: flex; flex-direction: column; gap: 6px; }
+.mail-body, .ftp-view pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-3); margin: 0; }
+
+/* ---------- messaging */
+.chat-peers { display: flex; gap: 6px; flex-wrap: wrap; }
+.chat-peers button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: var(--fs-sm); font-family: var(--font-mono); }
+.chat-peers button.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.chat-log { display: flex; flex-direction: column; gap: var(--space-2); min-height: 180px; max-height: 340px; overflow-y: auto; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.chat-line { display: flex; flex-direction: column; gap: 2px; max-width: 80%; }
+.chat-line.me { align-self: flex-end; align-items: flex-end; }
+.chat-name { color: var(--text-muted); }
+.chat-bubble { padding: 7px 11px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); overflow-wrap: anywhere; }
+.chat-line.me .chat-bubble { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chat-compose { display: flex; gap: var(--space-2); }
+.chat-compose input { flex: 1; min-width: 0; }
+
+/* ---------- ftp */
+.ftp-files { display: flex; flex-direction: column; gap: var(--space-3); }
+.ftp-view { display: flex; flex-direction: column; gap: 6px; }
+.ftp-view pre { font-family: var(--font-mono); font-size: var(--fs-sm); max-height: 240px; overflow: auto; }
+
+/* ---------- services tab */
+.services { display: grid; grid-template-columns: 190px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: var(--space-4); height: 100%; }
+.services-nav { display: flex; flex-direction: column; gap: 4px; grid-row: 1 / span 2; }
+.services-nav button { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; text-align: left; padding: 9px 10px; border-radius: var(--radius-sm); border: 1px solid transparent; background: none; color: var(--text); font-weight: var(--fw-medium); }
+.services-nav button:hover { background: var(--surface-2); }
+.services-nav button.active { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.services-body { display: flex; flex-direction: column; gap: var(--space-3); overflow-y: auto; min-height: 0; padding-right: 4px; }
+.services-toggle { display: flex; align-items: center; gap: var(--space-2); }
+.services-card { display: flex; flex-direction: column; gap: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3); margin: 0; }
+.services-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: var(--space-2); }
+.services-grid.two { grid-template-columns: minmax(0, 1fr) auto; }
+.services-foot { display: flex; align-items: center; gap: var(--space-3); border-top: 1px solid var(--border); padding-top: var(--space-3); grid-column: 2; }
+.services > .btn { align-self: start; }
+
+@media (max-width: 760px) {
+  .services { grid-template-columns: 1fr; }
+  .services-nav { flex-direction: row; flex-wrap: wrap; grid-row: auto; }
+  .services-foot { grid-column: 1; }
+  .app-row { grid-template-columns: 1fr; gap: 4px; }
+  .services-grid { grid-template-columns: 1fr; }
+}

@@ -6,7 +6,6 @@ import { useProjectStore } from '../../store/projectStore';
 import { useTerminalStore } from '../../store/terminalStore';
 import { useTopologyStore } from '../../store/topologyStore';
 import { useUiStore } from '../../store/uiStore';
-import { HOST_APPS } from '../apps';
 import { appsFor, DeviceWindow, windowTabsFor } from './DeviceWindow';
 
 const device = (hostname: string) => Object.values(useTopologyStore.getState().topology.devices).find((d) => d.hostname === hostname)!;
@@ -29,12 +28,13 @@ describe('what each kind of device offers', () => {
     expect(tabs('switch')).toEqual(['config', 'cli', 'tables']);
   });
 
-  it('a server’s Desktop has a DHCP Server app; a PC’s does not', () => {
+  it('a server’s Desktop has a DHCP Server app and a Services tab; a PC’s does not', () => {
     const pc = Object.values(useTopologyStore.getState().topology.devices).find((d) => d.kind === 'pc')!;
     const server = { ...pc, kind: 'server' as const };
-    const registry = HOST_APPS.map((a) => a.id);
+    const registry = ['browser', 'email', 'messaging', 'ftp'];
     expect(appsFor(pc).map((a) => a.id)).toEqual(['ipconfig', 'prompt', ...registry]);
     expect(appsFor(server).map((a) => a.id)).toEqual(['ipconfig', 'prompt', 'dhcp', ...registry]);
+    expect(windowTabsFor(server)).toEqual(['desktop', 'config', 'services']);
   });
 });
 
