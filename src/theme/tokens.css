@@ -1,0 +1,178 @@
+/*
+ * Design tokens: the ONLY place colours, radii, spacing and fonts are defined.
+ * Components use var(--token) and never hard-code a colour, so a theme change
+ * is an edit here. Light is the default; dark is set with
+ * <html data-theme="dark"> (the top-bar toggle) or follows the OS when the
+ * user has not chosen.
+ *
+ * Protocol colours are shared by packet envelopes on the canvas, protocol
+ * pills in the event table and the legend, so one protocol has one colour
+ * everywhere. RIP (#F97316 orange) and STP (#EAB308 amber) are deliberately
+ * different hues; STP-blocked port dots reuse the STP colour on purpose.
+ */
+
+:root {
+  /* brand + surfaces (light) */
+  --accent: #3766f5;
+  --accent-hover: #2b55d8;
+  --accent-soft: #e8eeff;
+  --on-accent: #ffffff;
+  --bg: #f8faff;
+  --surface: #ffffff;
+  --surface-2: #f3f6fc;
+  --border: #e3e9f3;
+  --border-strong: #cdd6e6;
+  --text: #16203a;
+  --text-muted: #64708a;
+  --canvas-dot: #dfe5f0;
+  --shadow: 0 1px 2px rgba(22, 32, 58, 0.06), 0 4px 16px rgba(22, 32, 58, 0.06);
+  --overlay: rgba(22, 32, 58, 0.35);
+  --terminal-bg: #0f1420;
+  --terminal-text: #e6ebf5;
+  --terminal-error: #ff8f8f;
+
+
+  /* device icons */
+  --dev-body: #3a72ea;
+  --dev-top: #6b9cf5;
+  --dev-side: #2552c4;
+  --dev-edge: #1c3f96;
+  --dev-glyph: #ffffff;
+  --dev-slot: #12306f;
+  --dev-muted: #8797b5;
+  --dev-frame: #e4eaf5;
+  --dev-frame-edge: #7486a8;
+  --dev-screen-a: #8fd0ff;
+  --dev-screen-b: #2f6fe8;
+
+  /* status */
+  --up: #22c55e;
+  --down: #ef4444;
+  --blocked: #eab308;
+  --error: #dc2626;
+  --warning: #d97706;
+  --success: #16a34a;
+
+  /* protocols (packets, pills, legend) */
+  --proto-arp: #8b5cf6;
+  --proto-icmp: #22c55e;
+  --proto-dhcp: #0ea5e9;
+  --proto-rip: #f97316;
+  --proto-ospf: #ef4444;
+  --proto-stp: #eab308;
+  --proto-tcp: #14b8a6;
+  --proto-ndp: #a855f7;
+  --proto-app: #ec4899;
+  --proto-error: #b91c1c;
+
+  /* cables */
+  --cable-copper: #475569;
+  --cable-fiber: #f97316;
+  --cable-serial: #dc2626;
+
+  /* shape + type */
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --font: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 28px;
+  --fs-hero: 48px;
+  --fw-body: 400;
+  --fw-medium: 500;
+  --fw-heading: 650;
+  color-scheme: light;
+}
+
+/* Dark: near-black with cyan/teal accents (Kavya's first dark mockup). */
+:root[data-theme='dark'] {
+  --accent: #22d3ee;
+  --accent-hover: #67e8f9;
+  --accent-soft: rgba(34, 211, 238, 0.12);
+  --on-accent: #041015;
+  --bg: #07090c;
+  --surface: #0e1217;
+  --surface-2: #141a21;
+  --border: #1f2730;
+  --border-strong: #2c3742;
+  --text: #e6edf3;
+  --text-muted: #8b98a8;
+  --canvas-dot: #1a2129;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 20px rgba(0, 0, 0, 0.45);
+  --overlay: rgba(0, 0, 0, 0.6);
+  --terminal-bg: #030507;
+  --terminal-text: #d5f5f8;
+  --cable-copper: #94a3b8;
+  --dev-body: #1d6fd6;
+  --dev-top: #2f8cf0;
+  --dev-side: #1356ad;
+  --dev-edge: #5fc6ff;
+  --dev-glyph: #e9fbff;
+  --dev-slot: #0a1c38;
+  --dev-muted: #3c4a5e;
+  --dev-frame: #1b2633;
+  --dev-frame-edge: #6fd3ff;
+  --dev-screen-a: #6fe3ff;
+  --dev-screen-b: #1f6fe0;
+  --error: #f87171;
+  --warning: #fbbf24;
+  --success: #4ade80;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
+    --accent: #22d3ee;
+    --accent-hover: #67e8f9;
+    --accent-soft: rgba(34, 211, 238, 0.12);
+    --on-accent: #041015;
+    --bg: #07090c;
+    --surface: #0e1217;
+    --surface-2: #141a21;
+    --border: #1f2730;
+    --border-strong: #2c3742;
+    --text: #e6edf3;
+    --text-muted: #8b98a8;
+    --canvas-dot: #1a2129;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 20px rgba(0, 0, 0, 0.45);
+    --overlay: rgba(0, 0, 0, 0.6);
+    --terminal-bg: #030507;
+    --terminal-text: #d5f5f8;
+    --cable-copper: #94a3b8;
+    --dev-body: #1d6fd6;
+    --dev-top: #2f8cf0;
+    --dev-side: #1356ad;
+    --dev-edge: #5fc6ff;
+    --dev-glyph: #e9fbff;
+    --dev-slot: #0a1c38;
+    --dev-muted: #3c4a5e;
+    --dev-frame: #1b2633;
+    --dev-frame-edge: #6fd3ff;
+    --dev-screen-a: #6fe3ff;
+    --dev-screen-b: #1f6fe0;
+    --error: #f87171;
+    --warning: #fbbf24;
+    --success: #4ade80;
+    color-scheme: dark;
+  }
+}
+
+/* End devices draw their case in the neutral frame colour, network gear in blue. */
+.device-icon-pc,
+.device-icon-laptop,
+.device-icon-server {
+  --dev-body: var(--dev-frame);
+  --dev-side: var(--dev-frame);
+  --dev-edge: var(--dev-frame-edge);
+  --dev-slot: var(--dev-frame-edge);
+}

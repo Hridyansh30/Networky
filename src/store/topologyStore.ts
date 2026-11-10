@@ -23,6 +23,8 @@ interface State extends Snapshot {
   selection: Selection;
   cable: CableType;
   toast: { text: string; kind: 'error' | 'info'; at: number } | null;
+  /** Bumps when a whole project is swapped in, so the canvas can re-frame it. */
+  generation: number;
 }
 
 interface Actions {
@@ -41,6 +43,8 @@ interface Actions {
   save(): string;
   load(text: string): void;
   loadSnapshot(file: Snapshot, note: string): void;
+  /** Swap in a whole project (new, opened, or a lab): clears undo history and selection. */
+  replaceAll(file: { topology?: Topology; layout?: Layout }): void;
   notify(text: string, kind?: 'error' | 'info'): void;
 }
 
@@ -61,6 +65,7 @@ export const useTopologyStore = create<State & Actions>()((set, get) => {
     selection: null,
     cable: 'copper-straight',
     toast: null,
+    generation: 0,
 
     notify(text, kind = 'error') {
       set({ toast: { text, kind, at: Date.now() } });
@@ -150,6 +155,11 @@ export const useTopologyStore = create<State & Actions>()((set, get) => {
       pushHistory();
       set({ ...file, selection: null });
       get().notify(note, 'info');
+    },
+
+    replaceAll(file) {
+      const fresh = empty();
+      set({ topology: file.topology ?? fresh.topology, layout: file.layout ?? fresh.layout, past: [], future: [], selection: null, generation: get().generation + 1 });
     },
 
     load(text) {

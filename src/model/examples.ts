@@ -53,7 +53,9 @@ class Draft {
     const r = addDevice(this.t, kind, { hostname: name });
     this.t = r.topology;
     this.byName[name] = r.deviceId;
-    this.layout[r.deviceId] = { x, y };
+    // Lab coordinates are written on a compact grid; spread them out so
+    // cables are long enough to show port labels and moving packets.
+    this.layout[r.deviceId] = { x: Math.round(x * 1.2), y: Math.round(y * 1.5) };
     return this;
   }
   private port(name: string, port: string) {

@@ -41,6 +41,6 @@ export default defineConfig({
   plugins: [react(), csp()],
   base: './', // relative asset paths: the build works from any folder or host
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
   },
 });
