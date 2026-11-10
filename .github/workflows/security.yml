@@ -1,0 +1,81 @@
+# Slower, broader security checks that should not block day-to-day PRs.
+# Runs every Monday and on demand. CI already blocks PRs on high-severity
+# advisories in production dependencies.
+name: Security
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # Monday 06:17 UTC (off the hour: less queueing)
+  workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/**', '.github/actions/**']
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit ${{ matrix.app.name }}
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - { name: workspace, dir: . }
+          - { name: landing, dir: landing }
+          - { name: browser-tests, dir: .github/e2e }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: exists
+        env:
+          DIR: ${{ matrix.app.dir }}
+        run: if [ -f "$DIR/package-lock.json" ]; then echo "yes=true" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.exists.outputs.yes == 'true'
+        uses: ./.github/actions/setup-app
+        with:
+          dir: ${{ matrix.app.dir }}
+      - name: Audit all dependencies (dev tools too)
+        if: steps.exists.outputs.yes == 'true'
+        working-directory: ${{ matrix.app.dir }}
+        run: npm audit --audit-level=moderate
+      # Checks every installed package against the registry's signatures and
+      # provenance: catches a tampered tarball or a mirror serving fakes.
+      - name: Verify package signatures
+        if: steps.exists.outputs.yes == 'true'
+        working-directory: ${{ matrix.app.dir }}
+        run: npm audit signatures
+
+  # Lints the workflows themselves: expression mistakes, script injection
+  # (untrusted input in `run:`), unpinned actions, over-broad permissions.
+  workflow-lint:
+    name: Lint workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Downloaded binary is checked against a pinned SHA-256 before it runs,
+      # the same idea as pinning actions by commit.
+      - name: actionlint
+        env:
+          VERSION: 1.7.12
+          SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          tarball="actionlint_${VERSION}_linux_amd64.tar.gz"
+          curl -sSfLO "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/${tarball}"
+          echo "${SHA256}  ${tarball}" | sha256sum --check --strict
+          tar xzf "$tarball" actionlint
+          ./actionlint -color
+      # The token lets zizmor confirm each pinned SHA really belongs to the
+      # action's repo (an "impostor commit" from a fork would pass a plain pin).
+      - name: zizmor (GitHub Actions security audit)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pipx run zizmor==1.31.1 --min-severity medium .github/
+      - name: Change-detection self-test
+        run: bash .github/scripts/changed-apps.test.sh

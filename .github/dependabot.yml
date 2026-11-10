@@ -1,0 +1,34 @@
+# Weekly dependency update PRs. Every one goes through the same CI as a human
+# PR, so a breaking update shows up as a red check, not a broken site.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories: ["/", "/landing", "/.github/e2e"]
+    schedule:
+      interval: weekly
+      day: monday
+    # Wait a week before proposing a brand new release: most malicious
+    # package versions are caught and pulled within that window.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for all safe bumps instead of ten small ones.
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: deps
+
+  - package-ecosystem: github-actions
+    # Workflows plus the local composite actions that also pin versions.
+    directories: ["/", "/.github/actions/*"]
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

@@ -1,0 +1,16 @@
+# HTTP headers for the landing page, applied by the host (Cloudflare Pages and
+# Netlify both read this file from the root of the built folder).
+# The <meta> CSP from landing/vite.config.ts already covers scripts and network access;
+# these are the protections that only work as real HTTP headers.
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
+
+# Vite puts a content hash in every file name under assets/, so a changed file
+# gets a new URL. These can be cached forever; index.html must not be.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

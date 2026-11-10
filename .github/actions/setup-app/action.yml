@@ -1,0 +1,28 @@
+name: Set up app
+description: >
+  Installs Node and the exact dependencies from package-lock.json for one app.
+  setup-node caches the npm download cache (~/.npm), not node_modules, so
+  `npm ci` stays a clean install and still skips the network on a cache hit.
+inputs:
+  dir:
+    description: App folder that holds package.json and package-lock.json
+    required: true
+  node-version:
+    description: Node version
+    required: false
+    default: '22'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+        cache-dependency-path: ${{ inputs.dir }}/package-lock.json
+    - name: Install exact dependencies
+      shell: bash
+      working-directory: ${{ inputs.dir }}
+      # --ignore-scripts: a compromised dependency cannot run code at install
+      # time. Neither app needs install scripts today; if one ever does, drop
+      # the flag for that app and say why in the PR.
+      run: npm ci --ignore-scripts --no-audit --no-fund

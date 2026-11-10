@@ -1,0 +1,12 @@
+{
+  "name": "networky-ci-browser-tests",
+  "private": true,
+  "description": "Browser smoke tests the CI runs against each app's production build. Kept out of the apps' own package.json so CI owns them.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

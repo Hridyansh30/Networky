@@ -1,0 +1,246 @@
+# One pipeline for both apps: check -> (browser tests) -> deploy.
+# Design notes and the repo owner's setup steps: docs/ci-cd.md
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: # manual run: checks and (on main) redeploys BOTH apps
+
+# Default for every job: read the code, nothing else. Jobs ask for more only
+# if they need it (none do today).
+permissions:
+  contents: read
+
+# A new push to a PR cancels that PR's older run. Runs on main are queued,
+# never cancelled, so a deploy is never killed halfway.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '22'
+  # Not secrets: these end up in public HTML or URLs anyway. Set them under
+  # Settings -> Secrets and variables -> Actions -> Variables.
+  WORKSPACE_PROJECT: ${{ vars.CF_PAGES_PROJECT_WORKSPACE || 'networky' }}
+  LANDING_PROJECT: ${{ vars.CF_PAGES_PROJECT_LANDING || 'networky-landing' }}
+
+jobs:
+  # Decide which apps this change touches. Done here instead of with
+  # `on.paths` filters: a workflow skipped by `paths` never reports a status,
+  # so a required check would wait forever and block the merge.
+  changes:
+    name: Detect changed apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      apps: ${{ steps.detect.outputs.apps }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: bash .github/scripts/changed-apps.sh
+
+  check:
+    name: Check ${{ matrix.app.name }}
+    needs: changes
+    if: needs.changes.outputs.apps != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false # a landing failure should not hide a workspace failure
+      matrix:
+        app: ${{ fromJSON(needs.changes.outputs.apps) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.app.dir }}
+    env:
+      # Only the landing build reads this. The fallback lets PRs build before
+      # the variable exists; the deploy job refuses to ship it to production.
+      VITE_WORKSPACE_URL: ${{ vars.WORKSPACE_URL || 'https://app.example.com/' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-app
+        with:
+          dir: ${{ matrix.app.dir }}
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Landing only: optional absolute site URL for og:image tags. Set only
+      # when the variable exists, because an empty value would fail the build.
+      - name: Optional landing site URL
+        if: matrix.app.name == 'landing' && vars.LANDING_URL != ''
+        env:
+          LANDING_URL: ${{ vars.LANDING_URL }}
+        run: echo "VITE_SITE_URL=$LANDING_URL" >> "$GITHUB_ENV"
+
+      # Cheapest checks first, so a typo fails in seconds, not after a build.
+      - name: Lint
+        run: npm run lint --if-present
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+
+      # Blocking audit for what ships to users only. Dev-tool advisories go to
+      # the weekly security workflow so an unrelated advisory published today
+      # does not turn every open PR red.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Add host headers to the build
+        env:
+          APP: ${{ matrix.app.name }}
+        run: cp "$GITHUB_WORKSPACE/.github/deploy/$APP/_headers" dist/_headers
+
+      # Browser tests against the real production build (CSP included).
+      - name: Install browser test runner
+        working-directory: .github/e2e
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('.github/e2e/package-lock.json') }}
+      - name: Install Chromium
+        working-directory: .github/e2e
+        run: npx playwright install --with-deps chromium
+      - name: Browser smoke tests
+        working-directory: .github/e2e
+        env:
+          APP: ${{ matrix.app.name }}
+          APP_DIR: ${{ github.workspace }}/${{ matrix.app.dir }}
+        run: npx playwright test --project="$APP"
+      - name: App's own browser tests
+        run: npm run test:e2e --if-present
+
+      - name: Keep test report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-${{ matrix.app.name }}
+          path: .github/e2e/playwright-report
+          retention-days: 7
+
+      # Build once, deploy exactly what was tested. The deploy job downloads
+      # this folder instead of rebuilding it.
+      - name: Keep the build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-${{ matrix.app.name }}
+          path: ${{ matrix.app.dir }}/dist
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy ${{ matrix.app.name }} (${{ github.event_name == 'pull_request' && 'preview' || 'production' }})
+    needs: [changes, check]
+    # Production: only main, only after every check passed.
+    # Preview: only PRs from branches of this repo. Fork and Dependabot PRs get
+    # no secrets (by GitHub's design), so they are checked but not deployed.
+    if: >-
+      needs.changes.outputs.apps != '[]' &&
+      (
+        (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository &&
+         github.actor != 'dependabot[bot]')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.changes.outputs.apps) }}
+    # The token lives in these environments, not at repo level. "production"
+    # only accepts jobs from main (set in the environment's settings).
+    environment:
+      name: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+      url: ${{ steps.deploy.outputs.url }}
+    # One production deploy per app at a time, in commit order.
+    concurrency:
+      group: deploy-${{ matrix.app.name }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'production' }}
+      cancel-in-progress: false
+    steps:
+      # Needed only for the local deploy action; no credentials kept.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+
+      - name: Refuse to ship placeholder links
+        if: matrix.app.name == 'landing' && github.event_name != 'pull_request' && vars.WORKSPACE_URL == ''
+        run: |
+          echo "::error::Repository variable WORKSPACE_URL is not set, so the landing page would link to app.example.com. See docs/ci-cd.md."
+          exit 1
+
+      # Until the owner adds the host secrets, previews are skipped with a
+      # notice instead of failing every PR. Production fails loudly.
+      - name: Check host credentials
+        id: creds
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PRODUCTION: ${{ github.event_name != 'pull_request' }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ACCOUNT" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$PRODUCTION" = "true" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set in the production environment. See docs/ci-cd.md."
+            exit 1
+          fi
+          echo "::notice::Preview skipped: host secrets are not set in the preview environment yet."
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.creds.outputs.ok == 'true'
+        with:
+          name: dist-${{ matrix.app.name }}
+          path: _site
+
+      - id: deploy
+        if: steps.creds.outputs.ok == 'true'
+        uses: ./.github/actions/deploy-static
+        with:
+          dir: _site
+          project: ${{ matrix.app.name == 'landing' && env.LANDING_PROJECT || env.WORKSPACE_PROJECT }}
+          production: ${{ github.event_name != 'pull_request' }}
+          preview-name: pr-${{ github.event.pull_request.number }}
+          api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Summary
+        if: steps.creds.outputs.ok == 'true'
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+          APP: ${{ matrix.app.name }}
+        run: 'echo "### $APP deployed: $URL" >> "$GITHUB_STEP_SUMMARY"'
+
+  # The ONE check to mark as required in branch protection. It passes when
+  # every job that ran passed; skipped jobs (unchanged app) are fine, so the
+  # rule never needs editing when jobs change. Deploy is deliberately not in
+  # the list: a host outage should not block merging reviewed, tested code.
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs: [changes, check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) echo "::error::A required job failed or was cancelled"; exit 1 ;;
+          esac
