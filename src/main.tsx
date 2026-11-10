@@ -1,3 +1,4 @@
+import './zodConfig'; // first: see the file for why
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/inter';
