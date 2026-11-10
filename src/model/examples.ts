@@ -34,6 +34,8 @@ export interface Exercise {
 }
 
 export interface Example {
+  /** Stable URL id for deep links: #/lab/<id>. Never rename one; links in the wild use it. */
+  id: string;
   name: string;
   description: string;
   /** Protocols this lab is about (matches the protocol filter names). */
@@ -174,6 +176,7 @@ function threeRouters(mode: 'serial' | 'ospf' = 'serial'): Draft {
 
 export const EXAMPLES: Example[] = [
   {
+    id: 'hub-vs-switch',
     name: 'Hub vs switch',
     level: 'Beginner',
     minutes: 10,
@@ -209,6 +212,7 @@ export const EXAMPLES: Example[] = [
         .done(),
   },
   {
+    id: 'two-lans-one-router',
     name: 'Two LANs, one router',
     level: 'Beginner',
     minutes: 10,
@@ -235,6 +239,7 @@ export const EXAMPLES: Example[] = [
         .done(),
   },
   {
+    id: 'static-routes',
     name: 'Two routers, static routes',
     level: 'Beginner',
     minutes: 15,
@@ -267,6 +272,7 @@ export const EXAMPLES: Example[] = [
         .done(),
   },
   {
+    id: 'vlans-router-on-a-stick',
     name: 'VLAN lab: router-on-a-stick',
     level: 'Intermediate',
     minutes: 20,
@@ -302,6 +308,7 @@ export const EXAMPLES: Example[] = [
         .done(),
   },
   {
+    id: 'stp-redundant-switches',
     name: 'STP: redundant switches',
     level: 'Intermediate',
     minutes: 20,
@@ -326,6 +333,7 @@ export const EXAMPLES: Example[] = [
         .done(),
   },
   {
+    id: 'dhcp-relay',
     name: 'DHCP with a relay',
     level: 'Intermediate',
     minutes: 20,
@@ -363,6 +371,7 @@ export const EXAMPLES: Example[] = [
         .done(),
   },
   {
+    id: 'office-edge-nat-acl',
     name: 'Office edge: NAT + ACL',
     level: 'Advanced',
     minutes: 30,
@@ -406,6 +415,7 @@ export const EXAMPLES: Example[] = [
         .done(),
   },
   {
+    id: 'rip-three-routers',
     name: 'RIP: three routers',
     level: 'Intermediate',
     minutes: 25,
@@ -415,6 +425,7 @@ export const EXAMPLES: Example[] = [
     build: () => threeRouters().rip('R1', [{ prefix: '10.0.0.0', prefixLength: 8 }]).rip('R2', [{ prefix: '10.0.0.0', prefixLength: 8 }]).rip('R3', [{ prefix: '10.0.0.0', prefixLength: 8 }]).done(),
   },
   {
+    id: 'ospf-cheapest-path',
     name: 'OSPF: cheapest path wins',
     level: 'Advanced',
     minutes: 30,
@@ -427,6 +438,7 @@ export const EXAMPLES: Example[] = [
     },
   },
   {
+    id: 'ipv6-slaac-ndp',
     name: 'IPv6: SLAAC and NDP',
     level: 'Advanced',
     minutes: 25,
@@ -455,3 +467,6 @@ export const EXAMPLES: Example[] = [
         .done(),
   },
 ];
+
+/** The lab with this id, or undefined. Ids are compared exactly, never as a pattern. */
+export const exampleById = (id: string): Example | undefined => EXAMPLES.find((e) => e.id === id);

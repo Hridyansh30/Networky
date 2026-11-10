@@ -6,6 +6,7 @@ import { WorkspacePage } from '../pages/WorkspacePage';
 import { ConfirmHost } from '../ui/Confirm';
 import { IconDefs } from '../ui/icons';
 import { Toast } from '../ui/Toast';
+import { LabLink } from './LabLink';
 import { useRoute } from './router';
 import { applyTheme } from './theme';
 
@@ -13,7 +14,7 @@ export function App() {
   const route = useRoute();
   useEffect(applyTheme, []);
   useEffect(() => {
-    const titles = { home: 'Networky', projects: 'Projects · Networky', learn: 'Learn · Networky', workspace: 'Workspace · Networky' };
+    const titles = { home: 'Networky', projects: 'Projects · Networky', learn: 'Learn · Networky', workspace: 'Workspace · Networky', lab: 'Opening lab · Networky' };
     document.title = titles[route.page];
   }, [route.page]);
 
@@ -24,6 +25,7 @@ export function App() {
       {route.page === 'projects' && <ProjectsPage />}
       {route.page === 'learn' && <LearnPage />}
       {route.page === 'workspace' && <WorkspacePage projectId={route.projectId} />}
+      {route.page === 'lab' && <LabLink labId={route.labId} />}
       <Toast />
       <ConfirmHost />
     </>
