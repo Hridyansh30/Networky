@@ -4,6 +4,7 @@
 
 import type { EnginePlugin } from '../plugin';
 import { aclPlugin } from './acl';
+import { appsPlugin } from './apps';
 import { dhcpPlugin } from './dhcp';
 import { ipv6Plugin } from './ipv6';
 import { natPlugin } from './nat';
@@ -20,7 +21,8 @@ export const DEFAULT_PLUGINS: readonly EnginePlugin[] = [
   ripPlugin,
   ospfPlugin,
   ipv6Plugin,
+  appsPlugin, // before tcpPlugin: it claims every TCP segment
   tcpPlugin,
 ];
 
-export { aclPlugin, dhcpPlugin, ipv6Plugin, natPlugin, ospfPlugin, ripPlugin, stpPlugin, tcpPlugin };
+export { aclPlugin, appsPlugin, dhcpPlugin, ipv6Plugin, natPlugin, ospfPlugin, ripPlugin, stpPlugin, tcpPlugin };

@@ -22,6 +22,7 @@ import { z } from 'zod';
 import { isValidIPv4 } from './ip';
 import { isValidIPv6, normalizeIPv6 } from './ip6';
 import { checkIntegrity } from './ops';
+import { dnsServerSchema, servicesSchema } from './servicesSchema';
 import type { Layout, Topology } from './types';
 
 export const LIMITS = {
@@ -121,6 +122,8 @@ const device = z
       .strict()
       .optional(),
     ipv6StaticRoutes: list(staticRouteV6).optional(),
+    dnsServer: dnsServerSchema.optional(),
+    services: servicesSchema.optional(),
   })
   .strict();
 

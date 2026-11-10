@@ -1,6 +1,8 @@
 // The topology model: what the network IS. No React, no DOM, no positions.
 // Everything else (UI, the phase 2 engine, exporters) reads this.
 
+import type { ServicesConfig } from './services';
+
 export type DeviceKind = 'pc' | 'laptop' | 'server' | 'hub' | 'switch' | 'router';
 export type PortType = 'fastethernet' | 'gigabitethernet' | 'serial' | 'fiber';
 export type CableType = 'copper-straight' | 'copper-cross' | 'fiber' | 'serial';
@@ -127,6 +129,10 @@ export interface Device {
   /** Router: OSPF, enabled when present. */
   ospf?: { routerId?: string; networks: (RoutingNetwork & { area: number })[] };
   ipv6StaticRoutes?: StaticRoute[];
+  /** PC, laptop, server: the DNS server it asks (else the one from DHCP). */
+  dnsServer?: string;
+  /** PC, laptop, server: application services and Desktop app settings (model/services.ts). */
+  services?: ServicesConfig;
 }
 
 export interface Link {
