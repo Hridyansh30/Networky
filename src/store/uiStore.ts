@@ -17,6 +17,9 @@ interface UiState {
   closeWindow(): void;
   setWindowTab(tab: WindowTab): void;
   setDesktopApp(app: DesktopApp): void;
+  /** The Export or Import dialog (phase 4), or null. */
+  interop: 'export' | 'import' | null;
+  setInterop(dialog: 'export' | 'import' | null): void;
 }
 
 export const useUiStore = create<UiState>()((set) => ({
@@ -34,6 +37,10 @@ export const useUiStore = create<UiState>()((set) => ({
   },
   setDesktopApp(desktopApp) {
     set({ desktopApp });
+  },
+  interop: null,
+  setInterop(interop) {
+    set({ interop });
   },
 }));
 

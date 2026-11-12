@@ -9,6 +9,7 @@ import { DeviceWindow } from '../ui/workspace/DeviceWindow';
 import { Canvas } from '../ui/workspace/Canvas';
 import { Inspector } from '../ui/workspace/Inspector';
 import { LeftPanel } from '../ui/workspace/LeftPanel';
+import { InteropDialogs } from '../ui/workspace/InteropDialogs';
 import { PduModal } from '../ui/workspace/PduModal';
 import { SimDock } from '../ui/workspace/SimDock';
 import { saveProject, TopBar } from '../ui/workspace/TopBar';
@@ -41,7 +42,7 @@ export function WorkspacePage({ projectId }: { projectId?: string }) {
         void saveProject();
         return;
       }
-      if (typing(e.target) || useUiStore.getState().windowDeviceId || useSimStore.getState().openHop !== null) return;
+      if (typing(e.target) || useUiStore.getState().windowDeviceId || useUiStore.getState().interop || useSimStore.getState().openHop !== null) return;
       const store = useTopologyStore.getState();
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -80,6 +81,7 @@ export function WorkspacePage({ projectId }: { projectId?: string }) {
         <SimDock />
         <PduModal />
         <DeviceWindow />
+        <InteropDialogs />
       </div>
     </ReactFlowProvider>
   );

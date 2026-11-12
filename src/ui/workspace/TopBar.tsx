@@ -5,7 +5,8 @@ import { useTopologyStore } from '../../store/topologyStore';
 import { CommitField } from '../CommitField';
 import { confirmAction } from '../Confirm';
 import { Icon, Logo } from '../icons';
-import { exportFile, openFileDialog } from '../openFile';
+import { openFileDialog } from '../openFile';
+import { useUiStore } from '../../store/uiStore';
 import { ThemeToggle } from '../TopNav';
 
 export async function saveProject() {
@@ -71,7 +72,10 @@ export function TopBar() {
         <button className="btn sm ghost" onClick={saveProject} title="Save in this browser (Ctrl+S)">
           <Icon.Save size={16} /> Save
         </button>
-        <button className="btn sm ghost" onClick={() => exportFile(name)} title="Download as a file you can share">
+        <button className="btn sm ghost" onClick={() => useUiStore.getState().setInterop('import')} title="Import a Cisco IOS configuration">
+          <Icon.Terminal size={16} /> Import
+        </button>
+        <button className="btn sm ghost" onClick={() => useUiStore.getState().setInterop('export')} title="Export as a Networky file, Cisco IOS configs or Terraform for AWS">
           <Icon.Download size={16} /> Export
         </button>
       </div>

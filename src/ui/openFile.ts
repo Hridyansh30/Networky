@@ -32,17 +32,18 @@ export function openFileDialog(): Promise<boolean> {
   });
 }
 
-/** Download the current network as a file. */
-export function exportFile(name: string) {
-  downloadFile(useTopologyStore.getState().save(), name);
-}
-
 /** Download Networky JSON text as <name>.networky.json. */
 export function downloadFile(text: string, name: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  downloadText(text, `${name.replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'network'}.networky.json`, 'application/json');
+}
+
+/** Download any text as a file. The name must already be safe (see interop fileStem). */
+export function downloadText(text: string, fileName: string, mime: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: mime }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${name.replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'network'}.networky.json`;
+  a.download = fileName;
   a.click();
-  URL.revokeObjectURL(url);
+  // Revoking in the same tick can cancel the download in some browsers (Firefox).
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
