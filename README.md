@@ -107,6 +107,7 @@ model/    pure data + ops (no React). Every edit is an op that returns a new Top
 engine/   Simulation (the clock) + EnginePlugin hooks. Each protocol is one plugin in engine/plugins/.
 cli/      IOS command registry, show commands, running-config, host command prompt
 inspect/  tables (show commands as data) and PDU details by OSI layer
+interop/  importers and exporters: Cisco IOS config in/out, Terraform for AWS, Networky JSON
 storage/  ProjectRepository interface: IndexedDB in the browser, memory in tests
 store/    Zustand stores: topology (+ undo), simulation, terminals, project, UI
 ui/       React: workspace components, device window, Desktop app registry (ui/apps)
@@ -135,11 +136,54 @@ Add an entry to `HOST_APPS` in `src/ui/apps/index.ts`: `{ id, title, icon, kinds
 - Web pages served by a simulated server are never given to the real browser as HTML. `apps/html.ts` parses them into an allow-list of tags (no attributes except a checked `href`), and React renders that tree as text. No `innerHTML` anywhere.
 - Passwords in mail and FTP accounts are stored in plain text on purpose, so you can watch them cross the wire, which is exactly why plain FTP and POP3 are unsafe.
 
-### Tests
+## Phase 4: import and export (done)
 
-`npm test` runs about 300 tests:
+**Export** (top bar, Export) shows a live preview of the file before you download or copy it:
+
+| Format | File | What is in it |
+|---|---|---|
+| Networky project | `<name>.networky.json` | Everything. Open it again with Open. |
+| Cisco IOS configuration | `<name>-cisco.txt` | The running-config of every router and switch, ready to paste after `configure terminal`. Cables and end devices are listed as `!` comments. |
+| Terraform for an AWS VPC | `<name>-aws.tf` | The network translated into AWS resources. Review it, then run `terraform init / plan / apply` yourself. |
+
+**Import** (top bar, Import) takes a pasted or chosen `show running-config` from one or more devices. Each `hostname` line starts a device; a device that does not exist yet is created. The report updates as you type and shows exactly what Apply will do: which devices, which lines failed and why, and what was skipped. **Merge** adds to the existing config (like `copy tftp running-config`); **Replace** resets each listed device first and keeps its cables. Either way it is one undo step.
+
+### How the Terraform translation works
+
+AWS is not a router you configure; it is a set of managed resources. So the exporter translates meaning, not commands, and lists everything it could not translate in the file header and in the dialog.
+
+| In Networky | In AWS |
+|---|---|
+| The LAN behind a router interface (or a VLAN subinterface) | `aws_subnet` in one `aws_vpc`; the VPC CIDR is the smallest block that covers them, extra /16s become secondary CIDR blocks |
+| A link between two routers only | Nothing: the VPC router already knows every subnet. Static routes, RIP and OSPF are not exported |
+| Switches, hubs, VLANs, STP | Nothing: AWS runs layer 2 for you |
+| PAT (`ip nat inside source ... overload`) | Internet gateway + Elastic IP + NAT gateway in a new public subnet, and a private route table for the inside LANs |
+| An ACL applied `in` on a LAN interface | That subnet's network ACL **egress** rules (traffic leaving the subnet), in order |
+| An ACL applied `out` | **ingress** rules |
+| DHCP pool `dns-server` | `aws_vpc_dhcp_options` |
+| PCs, laptops, servers | `aws_instance`, off unless `create_instances = true` (they cost money) |
+
+Rules AWS cannot express are reported, not guessed: an ACL line that matches only part of a subnet (that is a security group's job), addresses AWS reserves (the first four and the last of each subnet), and mixing two RFC 1918 blocks in one VPC.
+
+### Import safety
+
+- Limits: 200 KB, 5000 lines, 512 characters per line, 50 devices. Text with control characters is refused.
+- Lines are replayed through the **same** CLI as the terminal, in an offline mode where `ping`, `traceroute` and other exec commands cannot run.
+- Passwords, secrets, `username`, `enable secret`, SNMP communities and keys are never imported. Banners, `line`, `clock` and other commands Networky does not model are listed as skipped.
+- Nothing changes until you press Apply. The text is never stored or sent anywhere.
+- Every string written into Terraform goes through `hclString` (`src/interop/hcl.ts`), which escapes `${` and `%{`. A device or project named `${file("~/.aws/credentials")}` stays a harmless string instead of becoming an expression `terraform plan` would run.
+- Networky never contacts AWS and never sees credentials. You run Terraform on your own machine.
+
+### Adding an exporter
+
+Write a function from `{ topology, layout, name }` to `{ fileName, mime, text, notes }` (see `src/interop/types.ts`) and add it to `EXPORTERS` in `src/interop/index.ts`. The Export dialog lists it, previews it and downloads it. Exporters are pure TypeScript with no React or DOM, so they are easy to test.
+
+## Tests
+
+`npm test` runs about 370 tests:
 - model ops, validation and serialization, including the security cases;
 - every protocol plugin and a modularity check;
 - every lab exercise, booted and run;
 - the CLI;
 - UI tests (jsdom) that type into a device's terminal and fill in the device window the way a user would.
+- import/export: every lab round-trips through Cisco export and import with no errors, every lab exports to well-formed Terraform, and the HCL injection cases.
