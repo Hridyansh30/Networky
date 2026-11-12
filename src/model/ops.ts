@@ -556,3 +556,25 @@ export function removeIpv6StaticRoute(t: Topology, deviceId: string, index: numb
     draft.devices[deviceId].ipv6StaticRoutes!.splice(index, 1);
   });
 }
+
+/**
+ * Router or switch back to factory settings, like 'write erase' + reload, but
+ * the cables stay plugged in and the hostname, ports and MACs are kept.
+ * Used by "replace" config imports (phase 4).
+ */
+export function resetNetworkConfig(t: Topology, deviceId: string): Topology {
+  const device = need(t.devices[deviceId], `Device '${deviceId}'`);
+  if (device.kind !== 'router' && device.kind !== 'switch') throw new TopologyError('Only routers and switches have an IOS configuration to reset');
+  return produce(t, (draft) => {
+    const d = draft.devices[deviceId];
+    for (const key of ['staticRoutes', 'ipv6StaticRoutes', 'stpPriority', 'dhcpPools', 'acls', 'nat', 'rip', 'ospf'] as const) delete d[key];
+    const subs = d.interfaceIds.filter((id) => draft.interfaces[id].parentId);
+    for (const id of subs) delete draft.interfaces[id];
+    d.interfaceIds = d.interfaceIds.filter((id) => !subs.includes(id));
+    for (const id of d.interfaceIds) {
+      const i = draft.interfaces[id];
+      for (const key of ['ipv4', 'ipv6', 'switchport', 'aclIn', 'aclOut', 'nat', 'helperAddress', 'ospfCost'] as const) delete i[key];
+      i.adminUp = true;
+    }
+  });
+}
