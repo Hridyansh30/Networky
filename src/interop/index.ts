@@ -3,9 +3,10 @@
 
 import { ciscoExporter } from './ciscoExport';
 import { networkyExporter } from './networkyJson';
+import { terraformExporter } from './terraform';
 import type { Exporter } from './types';
 
-export const EXPORTERS: Exporter[] = [networkyExporter, ciscoExporter];
+export const EXPORTERS: Exporter[] = [networkyExporter, ciscoExporter, terraformExporter];
 
 export { importCiscoConfig, IMPORT_LIMITS } from './ciscoImport';
 export type { ExportResult, Exporter, ImportNote, ImportResult } from './types';
