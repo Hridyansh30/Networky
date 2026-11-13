@@ -9,6 +9,10 @@ import { z } from 'zod';
 import type { CheckRegistry } from '../grading/checks';
 import type { TestCase, Visibility } from '../grading/types';
 import type { Topology } from '../model/types';
+import type { Rng } from './random';
+
+/** The values one variant of a randomized problem uses, by placeholder key. */
+export type Params = Readonly<Record<string, string | number>>;
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type ProblemType = 'configure' | 'troubleshoot' | 'predict';
@@ -34,12 +38,17 @@ export interface ProblemSpec {
   statement: string;
   requirements: Requirement[];
   tests: TestCase[];
+  /**
+   * Randomized problems only: the values for one seed. Statement, hints and
+   * test params may then use {{key}} placeholders (see params.ts).
+   */
+  params?: (rng: Rng) => Params;
   /** The network the learner opens. */
-  start(): Topology;
+  start(p: Params): Topology;
   /** A solution that must score 100%. */
-  reference(): Topology;
+  reference(p: Params): Topology;
   /** Plausible wrong solutions; each must fail at least one test. */
-  wrong: (() => Topology)[];
+  wrong: ((p: Params) => Topology)[];
 }
 
 const id = z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/, 'lower-case letters, digits and dashes');
@@ -74,7 +83,11 @@ const staticPart = z
   })
   .passthrough();
 
-/** Every problem in a spec, as a list of messages. Empty = valid. */
+/**
+ * Every problem in a spec, as a list of messages. Empty = valid. Pass a
+ * concrete variant (params.ts instantiate) for randomized problems, so the
+ * filled-in test params are what gets checked.
+ */
 export function validateSpec(spec: ProblemSpec, checks: CheckRegistry): string[] {
   const errors: string[] = [];
   const parsed = staticPart.safeParse(spec);
