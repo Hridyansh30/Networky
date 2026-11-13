@@ -1,27 +1,9 @@
 // Ready-made networks to learn from. Built with the same ops the UI uses,
 // so they are always valid topologies.
 
-import { parseRule } from './acl';
-import {
-  addDevice,
-  addSubinterface,
-  addStaticRoute,
-  connect,
-  createTopology,
-  setAcl,
-  setDefaultGateway,
-  setDefaultGatewayV6,
-  setDhcpPools,
-  setInterfaceIp,
-  setInterfaceOptions,
-  setNat,
-  setOspf,
-  setRip,
-  setStpPriority,
-  setSwitchport,
-  type InterfacePatch,
-} from './ops';
-import type { Acl, CableType, DeviceKind, DhcpPool, Layout, NatConfig, RoutingNetwork, Topology } from './types';
+import { Draft } from './draft';
+import type { Layout, Topology } from './types';
+
 
 /** Something to try in an example, and what should happen. Tests check every one. */
 export interface Exercise {
@@ -44,93 +26,6 @@ export interface Example {
   minutes: number;
   exercises: Exercise[];
   build(): { topology: Topology; layout: Layout };
-}
-
-class Draft {
-  t = createTopology();
-  layout: Layout = {};
-  private byName: Record<string, string> = {};
-
-  dev(kind: DeviceKind, name: string, x: number, y: number) {
-    const r = addDevice(this.t, kind, { hostname: name });
-    this.t = r.topology;
-    this.byName[name] = r.deviceId;
-    // Lab coordinates are written on a compact grid; spread them out so
-    // cables are long enough to show port labels and moving packets.
-    this.layout[r.deviceId] = { x: Math.round(x * 1.2), y: Math.round(y * 1.5) };
-    return this;
-  }
-  private port(name: string, port: string) {
-    const d = this.t.devices[this.byName[name]];
-    return d.interfaceIds.find((i) => this.t.interfaces[i].name === port)!;
-  }
-  link(a: string, ap: string, b: string, bp: string, cable: CableType = 'copper-straight') {
-    this.t = connect(this.t, this.port(a, ap), this.port(b, bp), cable).topology;
-    return this;
-  }
-  ip(name: string, port: string, address: string, prefixLength: number) {
-    this.t = setInterfaceIp(this.t, this.port(name, port), { address, prefixLength });
-    return this;
-  }
-  gw(name: string, gateway: string) {
-    this.t = setDefaultGateway(this.t, this.byName[name], gateway);
-    return this;
-  }
-  route(name: string, prefix: string, prefixLength: number, nextHop: string) {
-    this.t = addStaticRoute(this.t, this.byName[name], { prefix, prefixLength, nextHop });
-    return this;
-  }
-  access(sw: string, port: string, vlan: number) {
-    this.t = setSwitchport(this.t, this.port(sw, port), { mode: 'access', accessVlan: vlan, nativeVlan: 1 });
-    return this;
-  }
-  trunk(sw: string, port: string) {
-    this.t = setSwitchport(this.t, this.port(sw, port), { mode: 'trunk', accessVlan: 1, nativeVlan: 1 });
-    return this;
-  }
-  sub(router: string, port: string, vlan: number, address: string, prefixLength: number) {
-    const r = addSubinterface(this.t, this.port(router, port), vlan);
-    this.t = setInterfaceIp(r.topology, r.interfaceId, { address, prefixLength });
-    return this;
-  }
-  opts(name: string, port: string, patch: InterfacePatch) {
-    this.t = setInterfaceOptions(this.t, this.port(name, port), patch);
-    return this;
-  }
-  v6(name: string, port: string, address: string, prefixLength = 64) {
-    return this.opts(name, port, { ipv6: { address, prefixLength } });
-  }
-  gw6(name: string, gateway: string) {
-    this.t = setDefaultGatewayV6(this.t, this.byName[name], gateway);
-    return this;
-  }
-  pools(name: string, pools: DhcpPool[]) {
-    this.t = setDhcpPools(this.t, this.byName[name], pools);
-    return this;
-  }
-  acl(name: string, acl: string, type: Acl['type'], ...rules: string[]) {
-    this.t = setAcl(this.t, this.byName[name], acl, { type, rules: rules.map((r) => parseRule(r, type)) });
-    return this;
-  }
-  nat(name: string, build: (port: (p: string) => string) => NatConfig) {
-    this.t = setNat(this.t, this.byName[name], build((p) => this.port(name, p)));
-    return this;
-  }
-  rip(name: string, networks: RoutingNetwork[]) {
-    this.t = setRip(this.t, this.byName[name], networks);
-    return this;
-  }
-  ospf(name: string, routerId: string, networks: RoutingNetwork[]) {
-    this.t = setOspf(this.t, this.byName[name], { routerId, networks: networks.map((n) => ({ ...n, area: 0 })) });
-    return this;
-  }
-  stpPriority(name: string, priority: number) {
-    this.t = setStpPriority(this.t, this.byName[name], priority);
-    return this;
-  }
-  done() {
-    return { topology: this.t, layout: this.layout };
-  }
 }
 
 /**

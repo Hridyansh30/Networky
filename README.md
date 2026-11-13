@@ -180,12 +180,26 @@ Rules AWS cannot express are reported, not guessed: an ACL line that matches onl
 
 Write a function from `{ topology, layout, name }` to `{ fileName, mime, text, notes }` (see `src/interop/types.ts`) and add it to `EXPORTERS` in `src/interop/index.ts`. The Export dialog lists it, previews it and downloads it. Exporters are pure TypeScript with no React or DOM, so they are easy to test.
 
+## Phase 5: problems (in progress)
+
+Networky is becoming a LeetCode-style place to learn computer networks, with the simulator built in.
+
+- **Problems** (`#/problems`): each one is a start network plus test cases. Fix or configure the network in the normal workspace, press **Run** for the visible tests (free, changes nothing) or **Submit** for all of them, hidden ones included.
+- **Tests fade with difficulty**: easy shows every test, medium hides the configuration checks, hard hides almost everything. Hard problems are randomized, so every attempt is a different network.
+- **Hints** go from the idea to the exact command, three per requirement, each costing 25% of that requirement's points. The **solution** unlocks after solving or three failed submits.
+- **Show me** replays a failed test's traffic in Simulation mode so you can watch where it dies.
+- **XP and levels**: easy 10, medium 20, hard 40 XP, scaled by your best hinted score, once per problem. Saved in this browser only, so it is motivation, not a ranking (ranked XP needs the phase 6 server).
+- **Learn** (`#/learn`) groups problems into stage-wise tracks; **Playground** (`#/playground`) is the free workspace.
+
+Grading runs in a Web Worker with a timeout (`src/grading/gradeClient.ts`), so a looping network never freezes the page. Problems live in `src/problems/catalog/`, one module each, and CI checks every one: the start network must fail, the reference must score 100%, every planted wrong solution must fail (randomized problems on 25 seeds). Progress is stored in its own IndexedDB database and validated on every read. Features drawn in mockups but not built yet are listed in `docs/deferred.md`.
+
 ## Tests
 
-`npm test` runs about 370 tests:
+`npm test` runs about 500 tests:
 - model ops, validation and serialization, including the security cases;
 - every protocol plugin and a modularity check;
 - every lab exercise, booted and run;
 - the CLI;
 - UI tests (jsdom) that type into a device's terminal and fill in the device window the way a user would.
+- grading: every check plugin, determinism, every catalog problem's quality bar, hints, XP, saved progress (including tampered rows), the grader worker's timeout;
 - import/export: every lab round-trips through Cisco export and import with no errors, every lab exports to well-formed Terraform, and the HCL injection cases. In CI, the `terraform` job also runs the real `terraform fmt -check` and `terraform validate` on every lab's export (see `docs/ci-cd.md`).

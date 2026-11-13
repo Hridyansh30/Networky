@@ -39,13 +39,13 @@ describe('lab ids', () => {
 });
 
 describe('#/lab/<id>', () => {
-  it('opens a fresh, unsaved copy of the lab and replaces the hash with #/workspace', async () => {
+  it('opens a fresh, unsaved copy of the lab and replaces the hash with #/playground', async () => {
     const lab = exampleById('ospf-cheapest-path')!;
     expect(await openLabLink(lab.id)).toBe('opened');
     expect(useProjectStore.getState().lab).toBe(lab.name);
     expect(useProjectStore.getState().id).toBeUndefined();
     expect(useProjectStore.getState().isDirty()).toBe(false);
-    expect(location.hash).toBe('#/workspace');
+    expect(location.hash).toBe('#/playground');
   });
 
   it('an unknown id goes to Learn with a message and changes nothing', async () => {
@@ -68,7 +68,7 @@ describe('#/lab/<id>', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cancel' })));
     expect(await pending).toBe('kept');
     expect(useTopologyStore.getState().topology).toBe(edited);
-    expect(location.hash).toBe('#/workspace');
+    expect(location.hash).toBe('#/playground');
   });
 
   it('confirming replaces the unsaved work with the lab', async () => {

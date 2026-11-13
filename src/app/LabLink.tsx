@@ -1,7 +1,7 @@
 // #/lab/<labId>: the deep link the landing page's lab cards use.
 //
 // It opens a fresh, unsaved copy of that sample lab and then REPLACES the
-// hash with #/workspace, so a reload or the Back button never rebuilds the
+// hash with #/playground, so a reload or the Back button never rebuilds the
 // lab over the student's changes. An unknown or malformed id goes to the
 // Learn page with a toast; it is only ever compared to the ids in EXAMPLES,
 // never used to build HTML or a path.

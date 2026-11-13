@@ -13,6 +13,8 @@ interface ProjectState {
   name: string;
   /** The lab this project started from, if any (shows its exercises). */
   lab?: string;
+  /** Set while a problem's network is in the workspace (see problemStore). Its saving is automatic. */
+  problem?: string;
   /** Topology at the last save, to know if there are unsaved changes. */
   savedTopology: unknown;
   savedLayout: unknown;
@@ -48,14 +50,14 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   newProject() {
     useTopologyStore.getState().replaceAll({ topology: undefined, layout: undefined });
     const t = useTopologyStore.getState();
-    set({ id: undefined, name: 'Untitled', lab: undefined, savedTopology: t.topology, savedLayout: t.layout });
+    set({ id: undefined, name: 'Untitled', lab: undefined, problem: undefined, savedTopology: t.topology, savedLayout: t.layout });
   },
 
   openLab(example) {
     const file = example.build();
     useTopologyStore.getState().replaceAll(file);
     const t = useTopologyStore.getState();
-    set({ id: undefined, name: example.name, lab: example.name, savedTopology: t.topology, savedLayout: t.layout });
+    set({ id: undefined, name: example.name, lab: example.name, problem: undefined, savedTopology: t.topology, savedLayout: t.layout });
   },
 
   async open(id) {
@@ -63,7 +65,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     if (!p) return false;
     useTopologyStore.getState().replaceAll(p.file);
     const t = useTopologyStore.getState();
-    set({ id: p.id, name: p.name, lab: EXAMPLES.some((e) => e.name === p.name) ? p.name : undefined, savedTopology: t.topology, savedLayout: t.layout });
+    set({ id: p.id, name: p.name, problem: undefined, lab: EXAMPLES.some((e) => e.name === p.name) ? p.name : undefined, savedTopology: t.topology, savedLayout: t.layout });
     return true;
   },
 

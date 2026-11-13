@@ -60,6 +60,14 @@ export const Icon = {
   Monitor: (p: P) => <Stroke {...p}><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></Stroke>,
   Copy: (p: P) => <Stroke {...p}><rect x="8" y="8" width="13" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></Stroke>,
   Edit: (p: P) => <Stroke {...p}><path d="M4 20h4L19 9l-4-4L4 16z" /></Stroke>,
+  Code: (p: P) => <Stroke {...p}><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></Stroke>,
+  Shuffle: (p: P) => <Stroke {...p}><path d="M3 7h3.5a5 5 0 0 1 4 2l3 5a5 5 0 0 0 4 2H21M3 17h3.5a5 5 0 0 0 4-2M14 9a5 5 0 0 1 3.5-2H21M18 4l3 3-3 3M18 14l3 3-3 3" /></Stroke>,
+  Calendar: (p: P) => <Stroke {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></Stroke>,
+  Lock: (p: P) => <Stroke {...p}><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></Stroke>,
+  Bulb: (p: P) => <Stroke {...p}><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z" /></Stroke>,
+  Eye: (p: P) => <Stroke {...p}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></Stroke>,
+  Path: (p: P) => <Stroke {...p}><circle cx="6" cy="19" r="2.5" /><circle cx="18" cy="5" r="2.5" /><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5" /></Stroke>,
+  Spark: (p: P) => <Stroke {...p}><path d="M12 3c.5 4 2.5 6.5 6 7.5-3.5 1-5.5 3.5-6 7.5-.5-4-2.5-6.5-6-7.5 3.5-1 5.5-3.5 6-7.5z" /></Stroke>,
   Network: (p: P) => <Stroke {...p}><path d="M12 3 4 19h16z" /><circle cx="12" cy="3.5" r="2" fill="currentColor" /><circle cx="4" cy="19" r="2" fill="currentColor" /><circle cx="20" cy="19" r="2" fill="currentColor" /></Stroke>,
 };
 

@@ -19,6 +19,12 @@ const typing = (el: EventTarget | null) => el instanceof HTMLElement && (el.isCo
 export function WorkspacePage({ projectId }: { projectId?: string }) {
   const currentId = useProjectStore((s) => s.id);
 
+  // Coming from a problem: its network is saved with the problem's progress
+  // (autosave), so the playground starts empty instead of editing it here.
+  useEffect(() => {
+    if (useProjectStore.getState().problem) useProjectStore.getState().newProject();
+  }, []);
+
   // #/workspace/<id>: load that saved project unless it is already open.
   useEffect(() => {
     if (!projectId || projectId === currentId) return;
@@ -33,34 +39,7 @@ export function WorkspacePage({ projectId }: { projectId?: string }) {
       });
   }, [projectId, currentId]);
 
-  // Keyboard shortcuts. Never steal keys from a text field or the terminal.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        void saveProject();
-        return;
-      }
-      if (typing(e.target) || useUiStore.getState().windowDeviceId || useUiStore.getState().interop || useSimStore.getState().openHop !== null) return;
-      const store = useTopologyStore.getState();
-      if (mod && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) store.redo();
-        else store.undo();
-      } else if (mod && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        store.redo();
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (store.selection) {
-          e.preventDefault();
-          store.deleteSelection();
-        }
-      } else if (e.key === 'Escape') store.select(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  useWorkspaceShortcuts(saveProject);
 
   // Warn before closing the tab with unsaved work.
   useEffect(() => {
@@ -85,4 +64,38 @@ export function WorkspacePage({ projectId }: { projectId?: string }) {
       </div>
     </ReactFlowProvider>
   );
+}
+
+/**
+ * Canvas shortcuts shared by the playground and the problem page: Ctrl+S,
+ * undo/redo, Delete, Escape. Never steals keys from a text field or the terminal.
+ */
+export function useWorkspaceShortcuts(onSave: () => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        onSave();
+        return;
+      }
+      if (typing(e.target) || useUiStore.getState().windowDeviceId || useUiStore.getState().interop || useSimStore.getState().openHop !== null) return;
+      const store = useTopologyStore.getState();
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) store.redo();
+        else store.undo();
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        store.redo();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (store.selection) {
+          e.preventDefault();
+          store.deleteSelection();
+        }
+      } else if (e.key === 'Escape') store.select(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onSave]);
 }

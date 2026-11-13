@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import type { CheckRegistry } from '../grading/checks';
 import type { TestCase, Visibility } from '../grading/types';
-import type { Topology } from '../model/types';
+import type { Layout, Topology } from '../model/types';
 import type { Rng } from './random';
 
 /** The values one variant of a randomized problem uses, by placeholder key. */
@@ -43,8 +43,12 @@ export interface ProblemSpec {
    * test params may then use {{key}} placeholders (see params.ts).
    */
   params?: (rng: Rng) => Params;
-  /** The network the learner opens. */
+  /** The network the learner opens. Built with Draft({ stableIds: true }), so device ids are hostnames. */
   start(p: Params): Topology;
+  /** Where each start device sits on the canvas, by device id (= hostname). The same for every variant. */
+  layout?: Layout;
+  /** Plain text: how the reference solves it and why. Shown only when the solution is unlocked. */
+  solution?: string;
   /** A solution that must score 100%. */
   reference(p: Params): Topology;
   /** Plausible wrong solutions; each must fail at least one test. */
@@ -62,6 +66,7 @@ const staticPart = z
     difficulty: z.enum(['easy', 'medium', 'hard']),
     type: z.enum(['configure', 'troubleshoot', 'predict']),
     statement: z.string().min(1).max(4000),
+    solution: z.string().min(1).max(4000).optional(),
     requirements: z
       .array(z.object({ id, text: z.string().min(1).max(300), hints: z.tuple([z.string().min(1), z.string().min(1), z.string().min(1)]) }).strict())
       .min(1)

@@ -20,7 +20,7 @@ export function openFileDialog(): Promise<boolean> {
         const parsed = deserialize(await file.text());
         useTopologyStore.getState().replaceAll(parsed);
         const t = useTopologyStore.getState();
-        useProjectStore.setState({ id: undefined, lab: undefined, name: file.name.replace(/\.(networky\.)?json$/i, '').slice(0, 80) || 'Imported', savedTopology: null, savedLayout: null });
+        useProjectStore.setState({ id: undefined, lab: undefined, problem: undefined, name: file.name.replace(/\.(networky\.)?json$/i, '').slice(0, 80) || 'Imported', savedTopology: null, savedLayout: null });
         notify(`Opened ${Object.keys(t.topology.devices).length} devices from ${file.name}`, 'info');
         resolve(true);
       } catch (e) {

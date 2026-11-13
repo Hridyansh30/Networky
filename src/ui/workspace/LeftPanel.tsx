@@ -51,7 +51,7 @@ export function LeftPanel() {
   );
 }
 
-function DevicePalette({ query }: { query: string }) {
+export function DevicePalette({ query }: { query: string }) {
   const addDevice = useTopologyStore((s) => s.addDevice);
   const cable = useTopologyStore((s) => s.cable);
   const setCable = useTopologyStore((s) => s.setCable);

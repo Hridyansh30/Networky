@@ -1,27 +1,51 @@
 import { useEffect } from 'react';
 import { HomePage } from '../pages/HomePage';
 import { LearnPage } from '../pages/LearnPage';
+import { ProblemPage } from '../pages/ProblemPage';
+import { ProblemsPage } from '../pages/ProblemsPage';
 import { ProjectsPage } from '../pages/ProjectsPage';
 import { WorkspacePage } from '../pages/WorkspacePage';
+import { problemBySlug } from '../problems/catalog';
 import { ConfirmHost } from '../ui/Confirm';
 import { IconDefs } from '../ui/icons';
 import { Toast } from '../ui/Toast';
 import { LabLink } from './LabLink';
-import { useRoute } from './router';
+import { useRoute, type Route } from './router';
 import { applyTheme } from './theme';
+
+function title(route: Route): string {
+  switch (route.page) {
+    case 'home':
+      return 'Networky';
+    case 'problems':
+      return 'Problems · Networky';
+    case 'problem':
+      return `${problemBySlug(route.slug)?.title ?? 'Problem'} · Networky`;
+    case 'projects':
+      return 'Projects · Networky';
+    case 'learn':
+      return 'Learn · Networky';
+    case 'workspace':
+      return 'Playground · Networky';
+    case 'lab':
+      return 'Opening lab · Networky';
+  }
+}
 
 export function App() {
   const route = useRoute();
   useEffect(applyTheme, []);
+  const t = title(route);
   useEffect(() => {
-    const titles = { home: 'Networky', projects: 'Projects · Networky', learn: 'Learn · Networky', workspace: 'Workspace · Networky', lab: 'Opening lab · Networky' };
-    document.title = titles[route.page];
-  }, [route.page]);
+    document.title = t;
+  }, [t]);
 
   return (
     <>
       <IconDefs />
       {route.page === 'home' && <HomePage />}
+      {route.page === 'problems' && <ProblemsPage />}
+      {route.page === 'problem' && <ProblemPage key={route.slug} slug={route.slug} />}
       {route.page === 'projects' && <ProjectsPage />}
       {route.page === 'learn' && <LearnPage />}
       {route.page === 'workspace' && <WorkspacePage projectId={route.projectId} />}

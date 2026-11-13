@@ -27,7 +27,7 @@ export default defineConfig({
     launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
   },
   projects: [
-    { name: 'workspace', testMatch: /workspace\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
+    { name: 'workspace', testMatch: /(workspace|problems)\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
     { name: 'landing', testMatch: /landing\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
