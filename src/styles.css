@@ -670,6 +670,23 @@ table.data tr.clickable:hover td { background: var(--surface-2); }
 .callout { display: flex; gap: 8px; align-items: flex-start; padding: var(--space-3); border-radius: var(--radius); font-size: var(--fs-sm); }
 .callout.error { color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); }
 .tests-tab, .hints-tab { display: flex; flex-direction: column; gap: var(--space-3); }
+.questions-tab { display: flex; flex-direction: column; gap: var(--space-4); }
+.question-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.question { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.question.right { border-color: var(--success); }
+.question.wrong { border-color: var(--border-strong); }
+.question fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 6px; }
+.question legend { padding: 0; margin-bottom: var(--space-2); font-weight: 600; line-height: 1.45; }
+.question legend .muted { font-weight: 400; }
+.q-num { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 4px; border-radius: 50%; background: var(--accent-soft, var(--surface-2)); color: var(--accent); font-size: var(--fs-xs); font-weight: 700; }
+.choice { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm, 8px); cursor: pointer; font-size: var(--fs-sm); }
+.choice:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.question fieldset:disabled .choice { cursor: default; }
+.choice.is-actual { border-color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.choice.is-wrong { border-color: var(--error); background: color-mix(in srgb, var(--error) 8%, transparent); }
+.question > .btn { align-self: flex-start; }
+.q-result { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; font-size: var(--fs-sm); }
+.q-result p { margin: 0; color: var(--text-muted); line-height: 1.55; }
 .test-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .test { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .test-mark { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border-strong); display: grid; place-items: center; color: var(--on-accent); }

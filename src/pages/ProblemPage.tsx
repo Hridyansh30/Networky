@@ -6,9 +6,11 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { href, navigate } from '../app/router';
 import { registry } from '../grading/checks';
+import { OUTCOME_WORDS, type Expectation } from '../grading/checks/common';
 import { HINT_COST } from '../grading/hints';
 import type { TestCase, TestResult } from '../grading/types';
 import { problemBySlug } from '../problems/catalog';
+import type { PredictQuestion } from '../problems/predict';
 import { visibilityOf } from '../problems/spec';
 import { problemXp, XP_BY_DIFFICULTY } from '../problems/xp';
 import { solutionUnlocked, SOLUTION_AFTER_FAILS, useProblemStore, type Variant } from '../store/problemStore';
@@ -104,7 +106,10 @@ export function ProblemPage({ slug }: { slug: string }) {
         <ProblemPanel v={variant} />
         <Canvas />
         <Inspector />
-        <SimDock />
+        {/* A predict problem is answered by reading, so the ping panel stays away until every answer is in. */}
+        <PredictGate v={variant}>
+          <SimDock />
+        </PredictGate>
         <PduModal />
         <DeviceWindow />
       </div>
@@ -112,19 +117,37 @@ export function ProblemPage({ slug }: { slug: string }) {
   );
 }
 
+const isPredict = (v: Variant) => v.type === 'predict';
+
+/** True once every question of a predict problem has an answer (always true for other problems). */
+function useAllAnswered(v: Variant): boolean {
+  const answers = useProblemStore((s) => s.progress[v.slug]?.answers);
+  return !isPredict(v) || (v.questions ?? []).every((q) => answers?.[q.id]);
+}
+
+function PredictGate({ v, children }: { v: Variant; children: React.ReactNode }) {
+  return useAllAnswered(v) ? <>{children}</> : null;
+}
+
 function ProblemTopBar({ v }: { v: Variant }) {
+  const predict = isPredict(v);
+  const answered = useAllAnswered(v);
   const grading = useProblemStore((s) => s.grading);
   const canUndo = useTopologyStore((s) => s.past.length > 0);
   const canRedo = useTopologyStore((s) => s.future.length > 0);
   const mode = useSimStore((s) => s.mode);
   const setMode = useSimStore((s) => s.setMode);
   const restart = async () => {
-    const ok = await confirmAction({
-      title: v.values && Object.keys(v.values).length ? 'Start a new variant?' : 'Start over?',
-      message: v.values && Object.keys(v.values).length ? 'You get a fresh network with different numbers. Your current network is replaced.' : 'Your network goes back to how the problem started. Your hints and score history stay.',
-      confirmLabel: 'Start over',
-      danger: true,
-    });
+    const ok = await confirmAction(
+      predict
+        ? { title: 'Answer again?', message: 'Your answers are cleared so you can go through the questions again. XP stays what your first attempt earned.', confirmLabel: 'Try again', danger: true }
+        : {
+            title: v.values && Object.keys(v.values).length ? 'Start a new variant?' : 'Start over?',
+            message: v.values && Object.keys(v.values).length ? 'You get a fresh network with different numbers. Your current network is replaced.' : 'Your network goes back to how the problem started. Your hints and score history stay.',
+            confirmLabel: 'Start over',
+            danger: true,
+          },
+    );
     if (ok) await useProblemStore.getState().restart();
   };
   return (
@@ -146,31 +169,37 @@ function ProblemTopBar({ v }: { v: Variant }) {
           <Icon.Redo />
         </button>
         <button className="btn sm ghost" onClick={restart} title="Back to the start network">
-          <Icon.Reset size={15} /> Start over
+          <Icon.Reset size={15} /> {predict ? 'Try again' : 'Start over'}
         </button>
       </div>
       <span className="spacer" />
-      <button className="btn sm" onClick={() => void useProblemStore.getState().run()} disabled={!!grading} title="Run the visible tests. Free, and changes nothing.">
-        <Icon.Play size={13} /> {grading === 'run' ? 'Running…' : 'Run'}
-      </button>
-      <button className="btn sm btn-primary" onClick={() => void useProblemStore.getState().submit()} disabled={!!grading} title="Run every test, hidden ones included, and record the result">
-        <Icon.Check size={15} /> {grading === 'submit' ? 'Grading…' : 'Submit'}
-      </button>
-      <div className="mode-switch" role="radiogroup" aria-label="Mode">
-        <button role="radio" aria-checked={mode === 'realtime'} className={mode === 'realtime' ? 'on' : ''} onClick={() => setMode('realtime')} title="Converged network; everything answers instantly">
-          <Icon.Clock size={16} /> Realtime
-        </button>
-        <button role="radio" aria-checked={mode === 'simulation'} className={mode === 'simulation' ? 'on' : ''} onClick={() => setMode('simulation')} title="Watch packets hop by hop">
-          <Icon.Play size={14} /> Simulation
-        </button>
-      </div>
+      {!predict && (
+        <>
+          <button className="btn sm" onClick={() => void useProblemStore.getState().run()} disabled={!!grading} title="Run the visible tests. Free, and changes nothing.">
+            <Icon.Play size={13} /> {grading === 'run' ? 'Running…' : 'Run'}
+          </button>
+          <button className="btn sm btn-primary" onClick={() => void useProblemStore.getState().submit()} disabled={!!grading} title="Run every test, hidden ones included, and record the result">
+            <Icon.Check size={15} /> {grading === 'submit' ? 'Grading…' : 'Submit'}
+          </button>
+        </>
+      )}
+      {answered && (
+        <div className="mode-switch" role="radiogroup" aria-label="Mode">
+          <button role="radio" aria-checked={mode === 'realtime'} className={mode === 'realtime' ? 'on' : ''} onClick={() => setMode('realtime')} title="Converged network; everything answers instantly">
+            <Icon.Clock size={16} /> Realtime
+          </button>
+          <button role="radio" aria-checked={mode === 'simulation'} className={mode === 'simulation' ? 'on' : ''} onClick={() => setMode('simulation')} title="Watch packets hop by hop">
+            <Icon.Play size={14} /> Simulation
+          </button>
+        </div>
+      )}
       <XpBar />
       <ThemeToggle />
     </header>
   );
 }
 
-type Tab = 'statement' | 'tests' | 'hints' | 'solution' | 'devices';
+type Tab = 'statement' | 'tests' | 'hints' | 'solution' | 'devices' | 'questions';
 
 function ProblemPanel({ v }: { v: Variant }) {
   const [tab, setTab] = useState<Tab>('statement');
@@ -183,13 +212,18 @@ function ProblemPanel({ v }: { v: Variant }) {
     lastReport.current = report;
   }, [report]);
 
-  const tabs: [Tab, string][] = [
-    ['statement', 'Problem'],
-    ['tests', 'Tests'],
-    ['hints', 'Hints'],
-    ['solution', 'Solution'],
-    ['devices', 'Devices'],
-  ];
+  const tabs: [Tab, string][] = isPredict(v)
+    ? [
+        ['statement', 'Problem'],
+        ['questions', 'Questions'],
+      ]
+    : [
+        ['statement', 'Problem'],
+        ['tests', 'Tests'],
+        ['hints', 'Hints'],
+        ['solution', 'Solution'],
+        ['devices', 'Devices'],
+      ];
   return (
     <aside className="left-panel problem-panel" aria-label="Problem">
       <div className="tabs" role="tablist">
@@ -200,7 +234,8 @@ function ProblemPanel({ v }: { v: Variant }) {
         ))}
       </div>
       <div className="left-scroll problem-scroll" aria-busy={!!grading}>
-        {tab === 'statement' && <StatementTab v={v} />}
+        {tab === 'statement' && <StatementTab v={v} onStart={() => setTab('questions')} />}
+        {tab === 'questions' && <QuestionsTab v={v} />}
         {tab === 'tests' && <TestsTab v={v} />}
         {tab === 'hints' && <HintsTab v={v} />}
         {tab === 'solution' && <SolutionTab v={v} />}
@@ -221,7 +256,7 @@ const TYPE_LABEL = {
   predict: 'Predict',
 } as const;
 
-function StatementTab({ v }: { v: Variant }) {
+function StatementTab({ v, onStart }: { v: Variant; onStart: () => void }) {
   const report = useProblemStore((s) => s.report);
   return (
     <div className="statement">
@@ -243,6 +278,24 @@ function StatementTab({ v }: { v: Variant }) {
       {v.statement.split(/\n{2,}/).map((para, i) => (
         <p key={i}>{para}</p>
       ))}
+      {isPredict(v) && (
+        <>
+          <p className="muted small">
+            Click devices and cables to read their settings and tables. The ping panel is hidden until you have answered every question: the point is to reason it out first. Your <b>first</b> answers decide the XP.
+          </p>
+          <button className="btn btn-primary" onClick={onStart}>
+            Go to the {v.questions?.length} questions <Icon.ArrowRight size={15} />
+          </button>
+        </>
+      )}
+      {!isPredict(v) && <StatementRequirements v={v} report={report} />}
+    </div>
+  );
+}
+
+function StatementRequirements({ v, report }: { v: Variant; report: ReturnType<typeof useProblemStore.getState>['report'] }) {
+  return (
+    <>
       <h3>Requirements</h3>
       <ul className="requirements">
         {v.requirements.map((r) => {
@@ -259,7 +312,89 @@ function StatementTab({ v }: { v: Variant }) {
       <p className="muted small">
         <b>Run</b> checks the visible tests and is free. <b>Submit</b> checks everything, hidden tests included, and records your score.
       </p>
+    </>
+  );
+}
+
+const sentence = (o: Expectation) => `It ${OUTCOME_WORDS[o]}`;
+
+function QuestionsTab({ v }: { v: Variant }) {
+  const progress = useProblemStore((s) => s.progress[v.slug]);
+  const outcomes = useProblemStore((s) => s.outcomes);
+  const questions = v.questions ?? [];
+  const answers = progress?.answers ?? {};
+  const done = questions.every((q) => answers[q.id]);
+  const right = questions.filter((q) => answers[q.id] && outcomes[q.id] === answers[q.id]).length;
+  return (
+    <div className="questions-tab">
+      {done ? (
+        <div className={`verdict ${right === questions.length ? 'pass' : 'fail'}`} role="status">
+          <b>
+            {right} of {questions.length} correct
+          </b>
+          <span className="small">
+            {progress?.solved
+              ? `This problem gives you ${problemXp({ difficulty: v.difficulty, best: progress.best, solutionFirst: false })} XP, from your first attempt (${Math.round((progress.firstTry ?? 0) * 100)}% right).`
+              : 'Read the explanations, then press Try again. The problem counts as solved once you get every question right in one go.'}{' '}
+            You can now replay each one and use the ping panel.
+          </span>
+        </div>
+      ) : (
+        <p className="muted small">
+          {Object.keys(answers).length} of {questions.length} answered. An answer is final: the explanation appears as soon as you lock it in.
+        </p>
+      )}
+      <ol className="question-list">
+        {questions.map((q, i) => (
+          <QuestionCard key={q.id} n={i + 1} q={q} chosen={answers[q.id] as Expectation | undefined} actual={outcomes[q.id]} canReplay={done} />
+        ))}
+      </ol>
     </div>
+  );
+}
+
+function QuestionCard({ n, q, chosen, actual, canReplay }: { n: number; q: PredictQuestion; chosen?: Expectation; actual?: Expectation | 'pending'; canReplay: boolean }) {
+  const [pick, setPick] = useState<Expectation | null>(null);
+  const correct = chosen !== undefined && chosen === actual;
+  return (
+    <li className={`question ${chosen ? (correct ? 'right' : 'wrong') : ''}`}>
+      <fieldset disabled={!!chosen}>
+        <legend>
+          <span className="q-num">{n}</span> {q.prompt} <span className="muted">What happens?</span>
+        </legend>
+        {q.choices.map((c) => (
+          <label key={c} className={`choice ${chosen && c === actual ? 'is-actual' : ''} ${chosen === c && !correct ? 'is-wrong' : ''}`}>
+            <input type="radio" name={`q-${q.id}`} checked={(chosen ?? pick) === c} onChange={() => setPick(c)} />
+            {sentence(c)}
+          </label>
+        ))}
+      </fieldset>
+      {!chosen && (
+        <button className="btn sm btn-primary" disabled={!pick} onClick={() => pick && void useProblemStore.getState().answer(q.id, pick)}>
+          Lock in answer
+        </button>
+      )}
+      {chosen && (
+        <div className="q-result" role="status">
+          <b>{correct ? 'Correct.' : `Not this time. ${actual && actual !== 'pending' ? sentence(actual) : 'It never finishes'}.`}</b>
+          <p>{q.explanation}</p>
+          {canReplay && (
+            <button
+              className="btn sm"
+              onClick={() => {
+                // Replay on the problem's own network, whatever was changed on the canvas since.
+                useProblemStore.getState().restoreStart();
+                const r = showMe(q.traffic);
+                if (!r.ok) useTopologyStore.getState().notify(r.error);
+              }}
+              title="Send this traffic in Simulation mode and watch every hop"
+            >
+              <Icon.Play size={12} /> Show me
+            </button>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
 

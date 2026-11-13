@@ -157,3 +157,61 @@ describe('problem store', () => {
     expect(() => deserialize(progress().attempt!)).not.toThrow();
   });
 });
+
+describe('predict problems', () => {
+  const slug = 'predict-ping-vs-port'; // right answers: success, success, refused
+
+  it('an answer is final, shows the real outcome, and only a complete attempt is scored', async () => {
+    await s().open(slug);
+    await s().answer('ping', 'lost');
+    expect(s().outcomes.ping).toBe('success');
+    await s().answer('ping', 'success'); // too late: the explanation was already shown
+    expect(progress(slug).answers).toEqual({ ping: 'lost' });
+    expect(progress(slug).solved).toBe(false);
+    expect(progress(slug).firstTry).toBeUndefined();
+    await s().answer('web', 'success');
+    await s().answer('ftp', 'refused');
+    expect(progress(slug)).toMatchObject({ solved: false, firstTry: 2 / 3, best: 2 / 3, submits: 1, last: { score: 2, max: 3 } });
+  });
+
+  it('a later attempt can solve it but never raises the first-try share', async () => {
+    await s().open(slug);
+    await s().answer('ping', 'lost');
+    await s().answer('web', 'success');
+    await s().answer('ftp', 'refused');
+    await s().restart();
+    expect(progress(slug).answers).toBeUndefined();
+    expect(s().outcomes).toEqual({});
+    await s().answer('ping', 'success');
+    await s().answer('web', 'success');
+    await s().answer('ftp', 'refused');
+    expect(progress(slug)).toMatchObject({ solved: true, firstTry: 2 / 3, best: 2 / 3 });
+  });
+
+  it('all right first time is solved with full share', async () => {
+    await s().open(slug);
+    await s().answer('ping', 'success');
+    await s().answer('web', 'success');
+    await s().answer('ftp', 'refused');
+    expect(progress(slug)).toMatchObject({ solved: true, firstTry: 1, best: 1 });
+  });
+
+  it('judges the start network, not what the learner changed on the canvas', async () => {
+    await s().open(slug);
+    useTopologyStore.getState().apply(({ topology, layout }) => ({ topology: setDefaultGateway(topology, 'PC1', '10.0.1.99'), layout }));
+    await s().answer('ping', 'success');
+    expect(s().outcomes.ping).toBe('success');
+  });
+
+  it('rejects a choice the question does not offer, and restores answers on the next visit', async () => {
+    await s().open(slug);
+    await s().answer('ping', 'ttl-exceeded');
+    expect(progress(slug).answers).toBeUndefined();
+    await s().answer('ping', 'success');
+    s().close();
+    resetProblemStore(repo);
+    await s().open(slug);
+    expect(progress(slug).answers).toEqual({ ping: 'success' });
+    expect(s().outcomes).toEqual({ ping: 'success' });
+  });
+});

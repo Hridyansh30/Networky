@@ -32,6 +32,13 @@ export interface ProblemProgress {
   solutionOpened: boolean;
   submits: number;
   failedSubmits: number;
+  /**
+   * Predict problems: the outcome chosen per question id in the current
+   * attempt. An answer is final once given (the explanation is shown).
+   */
+  answers?: Record<string, string>;
+  /** Predict problems: the fraction right on the first complete attempt. This is what earns XP. */
+  firstTry?: number;
   /** The last Submit's hinted score. */
   last?: { score: number; max: number };
   updatedAt: number;
@@ -54,6 +61,11 @@ const schema = z
     solutionOpened: z.boolean(),
     submits: count,
     failedSubmits: count,
+    answers: z
+      .record(z.string().max(64), z.enum(['success', 'refused', 'unreachable', 'prohibited', 'ttl-exceeded', 'lost']))
+      .refine((a) => Object.keys(a).length <= 20)
+      .optional(),
+    firstTry: z.number().min(0).max(1).optional(),
     last: z.object({ score: count, max: count }).strict().optional(),
     updatedAt: z.number().int().min(0),
   })

@@ -9,6 +9,11 @@
 //  - Opening the solution before solving zeroes that problem's XP: otherwise
 //    "fail three times, load the answer, submit" would pay full XP.
 //
+//  - A predict problem has no hints or solution: its share is the fraction
+//    of questions right on the FIRST complete attempt (the store writes
+//    that into `best`), and it pays out once every question has been
+//    answered correctly in one attempt.
+//
 // Until the phase 6 server exists this is computed from progress saved in
 // the browser, which the learner can edit. Good for motivation; never use it
 // for ranking. Ranked XP will come from server-side re-grading.

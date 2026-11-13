@@ -333,6 +333,11 @@ function ProblemRow({ p, status }: { p: ProblemSpec; status: Status }) {
             Randomized
           </span>
         )}
+        {p.type === 'predict' && (
+          <span className="pill variant-pill" title="Nothing to configure: say what the traffic will do, then watch it">
+            Predict
+          </span>
+        )}
       </td>
       <td className="muted">{p.topic}</td>
       <td>

@@ -14,6 +14,12 @@
 //     Partial submits are feedback, not credit.
 //   - The solution unlocks after solving or after 3 failed submits. Opening
 //     it before the first solve zeroes that problem's XP, permanently.
+//   - Predict problems: an answer is final once given, because the
+//     explanation is shown straight away. The first complete attempt sets the
+//     XP share (firstTry); a later attempt can mark the problem solved (all
+//     correct) but never raises that share, since by then the answers were
+//     on screen. Answers are judged on the problem's own start network, not
+//     on whatever the learner changed on the canvas.
 //   - A problem whose version changed keeps solved/best (earned before) but
 //     starts a fresh attempt: the old network was made for other tests.
 
@@ -24,7 +30,9 @@ import { nextHint, scoreWithHints } from '../grading/hints';
 import type { GradeReport } from '../grading/types';
 import { deserialize, serialize, type NetworkyFile } from '../model/serialize';
 import { problemBySlug } from '../problems/catalog';
+import type { Expectation } from '../grading/checks/common';
 import { instantiate } from '../problems/params';
+import { actualOutcome } from '../problems/predict';
 import { newSeed } from '../problems/random';
 import type { Params, ProblemSpec } from '../problems/spec';
 import { createProgressRepository, emptyProgress, type ProblemProgress, type ProgressRepository } from '../storage/progressRepository';
@@ -47,6 +55,8 @@ interface ProblemState {
   report: GradeReport | null;
   grading: 'run' | 'submit' | null;
   error: string | null;
+  /** Predict problems: what the network really did, per answered question id. */
+  outcomes: Record<string, Expectation | 'pending'>;
 
   loadAll(): Promise<void>;
   open(slug: string): Promise<boolean>;
@@ -54,6 +64,10 @@ interface ProblemState {
   run(): Promise<void>;
   submit(): Promise<void>;
   unlockHint(requirement: string): Promise<void>;
+  /** Predict problems: lock in an answer. Ignored if that question already has one. */
+  answer(question: string, choice: Expectation): Promise<void>;
+  /** Predict problems: put the start network back on the canvas (before a replay). */
+  restoreStart(): void;
   /** Marks the solution as seen (and costs the XP if not yet solved). */
   openSolution(): Promise<void>;
   /** Replaces the learner's network with the reference solution. */
@@ -126,6 +140,7 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
     report: null,
     grading: null,
     error: null,
+    outcomes: {},
 
     async loadAll() {
       try {
@@ -144,7 +159,7 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       let saved = get().progress[slug] ?? null;
       if (saved && saved.specVersion !== spec.version) {
         // The tests changed: keep what was earned, start a fresh attempt.
-        saved = { ...emptyProgress(slug, spec.version), best: saved.best, solved: saved.solved, solutionFirst: saved.solutionFirst, solutionOpened: saved.solutionOpened };
+        saved = { ...emptyProgress(slug, spec.version), best: saved.best, solved: saved.solved, solutionFirst: saved.solutionFirst, solutionOpened: saved.solutionOpened, firstTry: saved.firstTry };
       }
       const seed = spec.params ? (saved?.seed ?? newSeed()) : undefined;
       const variant = instantiate(spec, seed) as Variant;
@@ -157,7 +172,10 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
         }
       }
       const row: ProblemProgress = { ...(saved ?? emptyProgress(slug, spec.version)), seed };
-      set({ variant, report: null, error: null, grading: null });
+      // Answers given earlier are shown with their real outcome again.
+      const start = variant.questions?.length ? variant.start(variant.values) : null;
+      const outcomes = Object.fromEntries((variant.questions ?? []).filter((q) => row.answers?.[q.id]).map((q) => [q.id, actualOutcome(start!, q)]));
+      set({ variant, report: null, error: null, grading: null, outcomes });
       showNetwork(file ?? startFile(variant), spec.title, slug);
       if (!file) row.attempt = attemptNow();
       await write(row);
@@ -175,7 +193,7 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       void get().flush();
       unsubscribe?.();
       unsubscribe = undefined;
-      set({ variant: null, report: null, grading: null, error: null });
+      set({ variant: null, report: null, grading: null, error: null, outcomes: {} });
     },
 
     async flush() {
@@ -216,6 +234,30 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       await write({ ...p, hints: { ...p.hints, [requirement]: n } });
     },
 
+    async answer(question, choice) {
+      const v = get().variant;
+      const p = current(get());
+      const q = v?.questions?.find((x) => x.id === question);
+      if (!v || !p || !q || !q.choices.includes(choice) || p.answers?.[question]) return;
+      const actual = actualOutcome(v.start(v.values), q);
+      const answers = { ...(p.answers ?? {}), [question]: choice };
+      const outcomes = { ...get().outcomes, [question]: actual };
+      set({ outcomes });
+      const all = v.questions!;
+      if (!all.every((x) => answers[x.id])) return write({ ...p, answers });
+      // The attempt is complete.
+      const right = all.filter((x) => outcomes[x.id] === answers[x.id]).length;
+      const share = right / all.length;
+      const firstTry = p.firstTry ?? share;
+      await write({ ...p, answers, firstTry, best: firstTry, submits: p.submits + 1, failedSubmits: p.failedSubmits + (right === all.length ? 0 : 1), solved: p.solved || right === all.length, last: { score: right, max: all.length } });
+    },
+
+    restoreStart() {
+      const v = get().variant;
+      // Untouched since it was opened (nothing to undo): leave the canvas alone.
+      if (v && useTopologyStore.getState().past.length > 0) useTopologyStore.getState().replaceAll(startFile(v));
+    },
+
     async openSolution() {
       const p = current(get());
       if (!p || !solutionUnlocked(p) || p.solutionOpened) return;
@@ -239,9 +281,9 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       const spec = problemBySlug(v.slug)!;
       const seed = spec.params ? newSeed() : undefined;
       const variant = instantiate(spec, seed) as Variant;
-      set({ variant, report: null, error: null });
+      set({ variant, report: null, error: null, outcomes: {} });
       useTopologyStore.getState().replaceAll(startFile(variant));
-      await write({ ...p, seed, attempt: attemptNow() });
+      await write({ ...p, seed, attempt: attemptNow(), answers: undefined });
     },
   };
 });
@@ -251,5 +293,5 @@ export function resetProblemStore(repo: ProgressRepository) {
   unsubscribe?.();
   unsubscribe = undefined;
   clearTimeout(saveTimer);
-  useProblemStore.setState({ repo, progress: {}, loaded: false, variant: null, report: null, grading: null, error: null });
+  useProblemStore.setState({ repo, progress: {}, loaded: false, variant: null, report: null, grading: null, error: null, outcomes: {} });
 }

@@ -17,7 +17,7 @@ export function showMe(action: ReplayAction): ShowMeResult {
   if (!src) return { ok: false, error: `There is no device named ${action.from} in your network.` };
   const sim = useSimStore.getState();
   sim.setMode('simulation');
-  sim.reset({ note: `Show me: replaying a failed test from ${src.hostname}. Press Play or Step.` });
+  sim.reset({ note: `Show me: replaying this traffic from ${src.hostname}. Press Play or Step.` });
   if (action.kind === 'http') {
     useSimStore.getState().runApp((s) => browse(s, createDisk(), src.id, action.url));
   } else {

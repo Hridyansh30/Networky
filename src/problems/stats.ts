@@ -14,7 +14,7 @@ export function statusOf(progress: Progress, slug: string): Status {
   const p = progress[slug];
   if (!p) return 'todo';
   if (p.solved) return 'solved';
-  return p.submits > 0 || p.hints && Object.keys(p.hints).length > 0 ? 'attempted' : 'todo';
+  return p.submits > 0 || Object.keys(p.hints).length > 0 || Object.keys(p.answers ?? {}).length > 0 ? 'attempted' : 'todo';
 }
 
 export interface LearnerStats {
