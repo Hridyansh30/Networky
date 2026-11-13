@@ -10,12 +10,14 @@
 // re-render. Any topology edit power-cycles the network.
 
 import { create } from 'zustand';
+import type { Transmission } from '../engine/packets';
 import type { Probe, ProbeRequest } from '../engine/plugin';
 import { DEFAULT_PLUGINS } from '../engine/plugins';
 import { Simulation } from '../engine/simulation';
 import { traceroute, type TraceHop } from '../engine/traceroute';
 import type { Topology } from '../model/types';
 import { PROTOCOLS, type ProtocolKey } from '../ui/protocols';
+import { advance, framesOnWire, startReplay, type Replay } from './replay';
 import { useTopologyStore } from './topologyStore';
 
 export type SimMode = 'realtime' | 'simulation';
@@ -31,6 +33,8 @@ interface SimState {
   filters: Record<ProtocolKey, boolean>;
   /** Event (hop) whose PDU details are open. */
   openHop: number | null;
+  /** A Desktop app exchange being replayed hop by hop (Simulation mode only). */
+  replay: Replay | null;
 
   setMode(mode: SimMode): void;
   /** Ping or TCP test from the simulation panel: animated in simulation mode. */
@@ -40,6 +44,11 @@ interface SimState {
   traceNow(deviceId: string, destination: string): TraceHop[];
   /** A converged copy of the network, for commands in simulation mode. */
   realtimeSim(): Simulation;
+  /**
+   * Run a Desktop app exchange. In Simulation mode on an idle network it runs
+   * on the visible network and is then replayed hop by hop (see replay.ts).
+   */
+  runApp<T>(action: (sim: Simulation) => T): T;
   step(): void;
   setPlaying(playing: boolean): void;
   setSpeed(speed: number): void;
@@ -73,10 +82,11 @@ export const useSimStore = create<SimState>()((set, get) => {
     speed: 2,
     filters: Object.fromEntries(PROTOCOLS.map((p) => [p.key, true])) as Record<ProtocolKey, boolean>,
     openHop: null,
+    replay: null,
 
     setMode(mode) {
       if (mode === get().mode) return;
-      set({ mode, playing: false, openHop: null, sim: mode === 'simulation' ? quietStart(topology()) : converged(topology()) });
+      set({ mode, playing: false, openHop: null, replay: null, sim: mode === 'simulation' ? quietStart(topology()) : converged(topology()) });
       bump();
     },
 
@@ -85,6 +95,24 @@ export const useSimStore = create<SimState>()((set, get) => {
       if (get().mode === 'realtime') return get().sim;
       if (realtimeCache?.topology !== t) realtimeCache = { topology: t, sim: converged(t) };
       return realtimeCache.sim;
+    },
+
+    runApp(action) {
+      const { mode, sim, replay } = get();
+      // Packets of a ping are still moving: the app can't share the wire with
+      // them without finishing them early, so it runs on the converged copy.
+      if (mode === 'realtime' || replay || !sim.isIdle()) {
+        const result = action(get().realtimeSim());
+        if (mode === 'simulation') sim.logEvent({ kind: 'info', text: 'An app exchange ran without animation because other packets are still moving. Play them to the end (or reset), then try again to watch it.' });
+        bump();
+        return result;
+      }
+      const before = sim.hops.at(-1)?.index ?? 0;
+      const result = action(sim);
+      const next = startReplay(sim.hops, before);
+      set({ replay: next, playing: next !== null });
+      bump();
+      return result;
     },
 
     send(request) {
@@ -110,7 +138,12 @@ export const useSimStore = create<SimState>()((set, get) => {
     },
 
     step() {
-      const { sim } = get();
+      const { sim, replay } = get();
+      if (replay) {
+        const next = advance(replay);
+        set(next ? { replay: next } : { replay: null, playing: false });
+        return bump();
+      }
       if (sim.isIdle()) return set({ playing: false });
       sim.step();
       if (sim.isIdle()) set({ playing: false });
@@ -118,7 +151,7 @@ export const useSimStore = create<SimState>()((set, get) => {
     },
 
     setPlaying(playing) {
-      set({ playing: playing && !get().sim.isIdle() });
+      set({ playing: playing && busy(get()) });
     },
 
     setSpeed(speed) {
@@ -140,11 +173,21 @@ export const useSimStore = create<SimState>()((set, get) => {
       else if (opts.watchBoot) sim = new Simulation(t, DEFAULT_PLUGINS).boot();
       else sim = quietStart(t);
       if (opts.note) sim.log.push({ tick: 0, kind: 'info', text: opts.note });
-      set({ sim, playing: !!opts.watchBoot && !sim.isIdle(), openHop: null });
+      set({ sim, playing: !!opts.watchBoot && !sim.isIdle(), openHop: null, replay: null });
       bump();
     },
   };
 });
+
+/** Is there anything left to play: frames on the wire, or a replay to finish? */
+export function busy(s: Pick<SimState, 'sim' | 'replay'>): boolean {
+  return s.replay !== null || !s.sim.isIdle();
+}
+
+/** What the cables show right now: the replay's frames, else the live ones. */
+export function wireFrames(s: Pick<SimState, 'sim' | 'replay'>): Transmission[] {
+  return s.replay ? framesOnWire(s.replay, s.sim.hops) : s.sim.inFlight;
+}
 
 // Any topology edit restarts the network. Moving a device does not.
 useTopologyStore.subscribe((state, prev) => {

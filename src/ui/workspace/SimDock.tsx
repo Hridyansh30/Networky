@@ -7,7 +7,8 @@ import type { Probe } from '../../engine/plugin';
 import { isHostKind } from '../../model/catalog';
 import { labByName, useProjectStore } from '../../store/projectStore';
 import { validate } from '../../model/validate';
-import { useSimStore } from '../../store/simStore';
+import { hopShown } from '../../store/replay';
+import { busy, useSimStore, wireFrames } from '../../store/simStore';
 import { useTopologyStore } from '../../store/topologyStore';
 import { Icon } from '../icons';
 import { PROTOCOLS, protocolInfo, protocolOfTag } from '../protocols';
@@ -85,7 +86,8 @@ function PlayControls() {
   useSimStore((s) => s.version);
   const sim = useSimStore((s) => s.sim);
   const st = useSimStore.getState();
-  const idle = sim.isIdle();
+  const replay = useSimStore((s) => s.replay);
+  const idle = !busy({ sim, replay });
   return (
     <div className="play" role="group" aria-label="Playback">
       <button className="icon-btn" onClick={() => st.setPlaying(!playing)} disabled={idle && !playing} title={playing ? 'Pause' : 'Play'} aria-label={playing ? 'Pause' : 'Play'}>
@@ -110,7 +112,7 @@ function PlayControls() {
           ))}
         </select>
       </label>
-      <span className="muted small tick">{idle ? 'idle' : `${sim.inFlight.length} in flight`}</span>
+      <span className="muted small tick">{idle ? 'idle' : `${wireFrames({ sim, replay }).length} in flight`}</span>
     </div>
   );
 }
@@ -241,9 +243,10 @@ function EventTable() {
   const sim = useSimStore((s) => s.sim);
   const filters = useSimStore((s) => s.filters);
   const setOpenHop = useSimStore((s) => s.setOpenHop);
+  const replay = useSimStore((s) => s.replay);
   const topology = sim.topology;
   const end = useRef<HTMLTableRowElement>(null);
-  const rows = sim.hops.filter((h) => filters[protocolOfTag(h.tag)]);
+  const rows = sim.hops.filter((h) => filters[protocolOfTag(h.tag)] && hopShown(replay, h));
   const shown = rows.slice(-500);
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'nearest' }); // newer browsers return a Promise here: keep it out of the effect's return

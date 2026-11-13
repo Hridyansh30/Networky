@@ -2,7 +2,7 @@ import { BaseEdge, EdgeLabelRenderer, useInternalNode, type Edge, type EdgeProps
 import { memo, useEffect, useRef } from 'react';
 import type { Transmission } from '../../engine/packets';
 import { shortPortName } from '../../model/catalog';
-import { useSimStore } from '../../store/simStore';
+import { useSimStore, wireFrames } from '../../store/simStore';
 import { useTopologyStore } from '../../store/topologyStore';
 import { protocolOfTag } from '../protocols';
 import { portState } from './portState';
@@ -60,6 +60,7 @@ function LinkEdgeView({ id, source, target, data, selected }: EdgeProps<LinkEdge
   const speed = useSimStore((s) => s.speed);
   const filters = useSimStore((s) => s.filters);
   const mode = useSimStore((s) => s.mode);
+  const replay = useSimStore((s) => s.replay);
   const box1 = boxOf(sourceNode);
   const box2 = boxOf(targetNode);
   if (!link || !a || !b || !box1 || !box2) return null;
@@ -75,7 +76,7 @@ function LinkEdgeView({ id, source, target, data, selected }: EdgeProps<LinkEdge
   const tagAt = Math.min(34, length / 3);
   const labelA = along(s1.x, s1.y, s2.x, s2.y, tagAt);
   const labelB = along(s2.x, s2.y, s1.x, s1.y, tagAt);
-  const onWire = mode === 'simulation' ? sim.inFlight.filter((tx) => tx.linkId === link.id && filters[protocolOfTag(sim.tagOf(tx.frame))]) : [];
+  const onWire = mode === 'simulation' ? wireFrames({ sim, replay }).filter((tx) => tx.linkId === link.id && filters[protocolOfTag(sim.tagOf(tx.frame))]) : [];
 
   return (
     <>

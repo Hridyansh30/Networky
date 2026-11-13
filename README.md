@@ -127,6 +127,8 @@ Dependencies only point down the list: the model knows nothing above it, and the
 
 Add an entry to `HOST_APPS` in `src/ui/apps/index.ts`: `{ id, title, icon, kinds, Component }`. The device window shows a tile for it on every device whose kind is listed. Nothing else changes.
 
+Apps send traffic through `runApp` (`src/apps/diskStore.ts`). In Simulation mode on an idle network, the exchange runs on the visible network and is then replayed hop by hop on the cables and in the event list (`src/store/replay.ts`), so a page load animates like a ping. One click can chain exchanges (DNS, then HTTP), which is why apps replay instead of stepping live. If other packets are still moving, the app runs instantly and the event list says why.
+
 ### Security
 
 - Opened files are untrusted. `deserialize` rejects files over 2 MB, enforces count limits, and runs strict Zod schemas (unknown keys are refused). A JSON reviver blocks `__proto__`, `constructor` and `prototype` keys, which prevents prototype pollution.
@@ -186,4 +188,4 @@ Write a function from `{ topology, layout, name }` to `{ fileName, mime, text, n
 - every lab exercise, booted and run;
 - the CLI;
 - UI tests (jsdom) that type into a device's terminal and fill in the device window the way a user would.
-- import/export: every lab round-trips through Cisco export and import with no errors, every lab exports to well-formed Terraform, and the HCL injection cases.
+- import/export: every lab round-trips through Cisco export and import with no errors, every lab exports to well-formed Terraform, and the HCL injection cases. In CI, the `terraform` job also runs the real `terraform fmt -check` and `terraform validate` on every lab's export (see `docs/ci-cd.md`).

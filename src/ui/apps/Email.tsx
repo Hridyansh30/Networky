@@ -27,7 +27,7 @@ export function Email({ deviceId, env }: { deviceId: string; env: CliEnv }) {
 
   const receive = () => {
     if (!account) return;
-    setOutcome(runApp(env, (sim, d) => fetchMail(sim, d, deviceId, account)));
+    setOutcome(runApp((sim, d) => fetchMail(sim, d, deviceId, account)));
   };
 
   return (
@@ -57,7 +57,7 @@ export function Email({ deviceId, env }: { deviceId: string; env: CliEnv }) {
 
       {view === 'sent' && <MailList mails={[...disk.sent].reverse()} empty="Nothing sent yet." onOpen={setOpen} open={open} who="to" />}
 
-      {view === 'compose' && account && <Compose deviceId={deviceId} env={env} account={account} onDone={setOutcome} outcome={outcome} />}
+      {view === 'compose' && account && <Compose deviceId={deviceId} account={account} onDone={setOutcome} outcome={outcome} />}
 
       {view === 'settings' && (
         <AccountForm
@@ -101,13 +101,13 @@ function MailList({ mails, empty, open, onOpen, who }: { mails: Mail[]; empty: s
   );
 }
 
-function Compose({ deviceId, env, account, outcome, onDone }: { deviceId: string; env: CliEnv; account: MailAccount; outcome: Outcome<unknown> | null; onDone: (o: Outcome<unknown>) => void }) {
+function Compose({ deviceId, account, outcome, onDone }: { deviceId: string; account: MailAccount; outcome: Outcome<unknown> | null; onDone: (o: Outcome<unknown>) => void }) {
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const r = runApp(env, (sim, d) => sendMail(sim, d, deviceId, account, to, subject, body));
+    const r = runApp((sim, d) => sendMail(sim, d, deviceId, account, to, subject, body));
     onDone(r);
     if (r.ok) {
       setTo('');

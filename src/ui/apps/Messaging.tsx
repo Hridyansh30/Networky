@@ -9,7 +9,7 @@ import { diskOf } from '../../engine/plugins/apps/disk';
 import type { CliEnv } from '../../cli/ios';
 import { Row, Steps } from './common';
 
-export function Messaging({ deviceId, env }: { deviceId: string; env: CliEnv }) {
+export function Messaging({ deviceId }: { deviceId: string; env: CliEnv }) {
   useDiskVersion();
   const chats = diskOf(useDiskStore.getState().disk, deviceId).chats;
   const peers = Object.keys(chats);
@@ -20,7 +20,7 @@ export function Messaging({ deviceId, env }: { deviceId: string; env: CliEnv }) 
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const r = runApp(env, (sim, disk) => sendChat(sim, disk, deviceId, peer, text));
+    const r = runApp((sim, disk) => sendChat(sim, disk, deviceId, peer, text));
     setOutcome(r.ok ? null : r);
     if (r.ok) {
       setText('');

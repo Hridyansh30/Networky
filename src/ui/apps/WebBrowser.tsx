@@ -9,14 +9,14 @@ import { runApp } from '../../apps/diskStore';
 import type { CliEnv } from '../../cli/ios';
 import { AppIcon, Steps } from './common';
 
-export function WebBrowser({ deviceId, env }: { deviceId: string; env: CliEnv }) {
+export function WebBrowser({ deviceId }: { deviceId: string; env: CliEnv }) {
   const [address, setAddress] = useState('http://');
   const [history, setHistory] = useState<string[]>([]);
   const [index, setIndex] = useState(-1);
   const [outcome, setOutcome] = useState<Outcome<Page> | null>(null);
 
   const load = (url: string, push = true) => {
-    const r = runApp(env, (sim, disk) => browse(sim, disk, deviceId, url));
+    const r = runApp((sim, disk) => browse(sim, disk, deviceId, url));
     setOutcome(r);
     if (r.ok) setAddress(r.value.url);
     if (push && r.ok) {

@@ -9,7 +9,7 @@ import type { FileEntry } from '../../engine/plugins/apps/messages';
 import type { CliEnv } from '../../cli/ios';
 import { Row, Steps } from './common';
 
-export function FtpClient({ deviceId, env }: { deviceId: string; env: CliEnv }) {
+export function FtpClient({ deviceId }: { deviceId: string; env: CliEnv }) {
   const [server, setServer] = useState('');
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
@@ -18,7 +18,7 @@ export function FtpClient({ deviceId, env }: { deviceId: string; env: CliEnv }) 
   const [upload, setUpload] = useState({ name: '', content: '' });
   const [outcome, setOutcome] = useState<Outcome<unknown> | null>(null);
 
-  const run = (command: FtpCommand) => runApp(env, (sim, disk) => ftp(sim, disk, deviceId, server, user, password, command));
+  const run = (command: FtpCommand) => runApp((sim, disk) => ftp(sim, disk, deviceId, server, user, password, command));
 
   const list = () => {
     const r = run({ cmd: 'list' });
