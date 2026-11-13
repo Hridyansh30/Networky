@@ -226,6 +226,59 @@ jobs:
           APP: ${{ matrix.app.name }}
         run: 'echo "### $APP deployed: $URL" >> "$GITHUB_STEP_SUMMARY"'
 
+  # The Terraform exporter's output, checked by Terraform itself. The unit
+  # tests compare HCL text; only `terraform validate` knows whether every AWS
+  # resource type, argument and reference is real, and `fmt -check` keeps the
+  # export byte-for-byte what `terraform fmt` would write.
+  terraform:
+    name: Validate Terraform export
+    needs: changes
+    if: contains(needs.changes.outputs.apps, '"workspace"')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TERRAFORM_VERSION: '1.13.5'
+      # From https://releases.hashicorp.com/terraform/1.13.5/terraform_1.13.5_SHA256SUMS
+      TERRAFORM_SHA256: 0dbe3fcc268eb670801af6a6456799d1ae26e72e73797f6c6167e18aafd1fd9a
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-app
+        with:
+          dir: .
+          node-version: ${{ env.NODE_VERSION }}
+
+      # A pinned release with its checksum checked, instead of a third-party
+      # setup action: one less dependency that could change under us.
+      - name: Install Terraform ${{ env.TERRAFORM_VERSION }}
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fsSLo terraform.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+          echo "${TERRAFORM_SHA256}  terraform.zip" | sha256sum --check --strict -
+          unzip -q terraform.zip terraform -d "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Export every sample lab
+        run: TERRAFORM_OUT="$RUNNER_TEMP/tf" npx vitest run --config .github/terraform/vitest.config.ts
+
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive -diff "$RUNNER_TEMP/tf"
+
+      - name: terraform validate
+        env:
+          # One provider download shared by every lab instead of one each.
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tf-plugins
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          for dir in "$RUNNER_TEMP"/tf/*/; do
+            echo "::group::$(basename "$dir")"
+            terraform -chdir="$dir" init -backend=false -input=false -no-color
+            terraform -chdir="$dir" validate -no-color
+            echo "::endgroup::"
+          done
+
   # The ONE check to mark as required in branch protection. It passes when
   # every job that ran passed; skipped jobs (unchanged app) are fine, so the
   # rule never needs editing when jobs change. Deploy is deliberately not in
@@ -233,7 +286,7 @@ jobs:
   ci-passed:
     name: CI passed
     if: always()
-    needs: [changes, check]
+    needs: [changes, check, terraform]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

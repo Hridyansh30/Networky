@@ -49,29 +49,46 @@ export type HclBody = (
   | { comment: string }
 )[];
 
-/** Render a block such as resource "aws_vpc" "main" { ... }, aligned like `terraform fmt`. */
+/** Is this entry an attribute that fits on one line (and so takes part in '=' alignment)? */
+const oneLine = (e: HclBody[number]): e is [string, HclValue | HclValue[] | Record<string, never>] =>
+  Array.isArray(e) && (Array.isArray(e[1]) || 'expr' in e[1] || Object.keys(e[1]).length === 0);
+
+/**
+ * Render a block such as resource "aws_vpc" "main" { ... }, laid out exactly
+ * as `terraform fmt` would (CI checks this with `terraform fmt -check`):
+ * the '=' of consecutive one-line attributes line up, and a nested block or a
+ * multi-line map or a comment ends that run, without being padded itself.
+ * (Checked against `terraform fmt` itself, not guessed.)
+ */
 export function renderBlock(header: string, body: HclBody, indent = ''): string[] {
   const inner = indent + '  ';
   const out = [`${indent}${header} {`];
-  // terraform fmt aligns the '=' of consecutive attributes
-  const width = Math.max(0, ...body.filter((e): e is [string, HclValue] => Array.isArray(e)).map(([k]) => k.length));
-  for (const entry of body) {
+  // Width of the run of one-line attributes that starts at each index.
+  const widths: number[] = [];
+  for (let i = body.length - 1, run = 0; i >= 0; i--) {
+    const e = body.at(i)!;
+    run = oneLine(e) ? Math.max(run, e[0].length) : 0;
+    widths.unshift(run);
+  }
+  let width = 0;
+  body.forEach((entry, i) => {
+    const prev = i > 0 ? body.at(i - 1)! : undefined;
+    if (oneLine(entry) && (!prev || !oneLine(prev))) width = widths.at(i)!; // a new run starts here
     if ('comment' in entry) out.push(`${inner}# ${entry.comment}`);
     else if ('block' in entry) out.push(...renderBlock(entry.block, entry.body, inner));
-    else {
+    else if (oneLine(entry)) {
       const [key, value] = entry;
-      const pad = key.padEnd(width);
-      if (Array.isArray(value)) out.push(`${inner}${pad} = [${value.map((v) => v.expr).join(', ')}]`);
-      else if ('expr' in value) out.push(`${inner}${pad} = ${(value as HclValue).expr}`);
-      else {
-        const map = value as Record<string, HclValue>;
-        const kw = Math.max(...Object.keys(map).map((k) => k.length));
-        out.push(`${inner}${pad} = {`);
-        for (const [k, v] of Object.entries(map)) out.push(`${inner}  ${k.padEnd(kw)} = ${v.expr}`);
-        out.push(`${inner}}`);
-      }
+      const rhs = Array.isArray(value) ? `[${value.map((v) => v.expr).join(', ')}]` : 'expr' in value ? (value as HclValue).expr : '{}';
+      out.push(`${inner}${key.padEnd(width)} = ${rhs}`);
+    } else {
+      const [key, map] = entry as [string, Record<string, HclValue>];
+      const keys = Object.keys(map);
+      const kw = Math.max(...keys.map((k) => k.length));
+      out.push(`${inner}${key} = {`);
+      for (const [k, v] of Object.entries(map)) out.push(`${inner}  ${k.padEnd(kw)} = ${v.expr}`);
+      out.push(`${inner}}`);
     }
-  }
+  });
   out.push(`${indent}}`);
   return out;
 }

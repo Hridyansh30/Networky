@@ -8,7 +8,8 @@ reaches the live sites. Each PR also gets its own preview URL.
 PR / push
    │
    ▼
-changes ──► check (workspace) ─┐  lint → typecheck → unit tests → build → audit
+changes ──► terraform ─────────┐  export every sample lab → terraform fmt -check → terraform validate
+   │        check (workspace) ─┤  lint → typecheck → unit tests → build → audit
    │        check (landing)  ──┤  → browser smoke tests on the production build
    │                           │  → upload dist/ (the exact files that were tested)
    │                           ▼
@@ -30,6 +31,7 @@ CI passed  ◄── the one required check for branch protection
 | `.github/deploy/<app>/_headers` | HTTP security and cache headers, copied into each build |
 | `.github/e2e/` | Browser smoke tests owned by CI (Playwright), run against both apps |
 | `.github/scripts/changed-apps.sh` | Decides which apps a change touches (+ a self-test) |
+| `.github/terraform/` | Writes the Terraform export of every sample lab for the `terraform` job (its own vitest config, so `npm test` never writes files) |
 
 ## Why it is built this way
 
@@ -92,6 +94,16 @@ malicious versions are pulled within that window.
 `~/.npm` keyed on the lockfile. `npm ci` still installs cleanly from the
 lockfile, just without the network. Caching `node_modules` is faster but can
 hide a broken lockfile.
+
+**12. Generated code is checked by the tool that will read it.** The Terraform
+exporter's unit tests compare text, which only proves the text is what we
+meant, not that Terraform accepts it. The `terraform` job runs the real
+`terraform validate` on the export of every sample lab, plus `fmt -check`. It
+caught a real difference on its first run: the exporter padded multi-line
+`tags = {` blocks into the `=` column, and `terraform fmt` does not. Terraform
+is a pinned release with its SHA-256 checked, not a third-party setup action.
+`terraform init` downloads the AWS provider from the public registry, so this
+job needs network access to it.
 
 ## Picking a host
 

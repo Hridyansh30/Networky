@@ -36,12 +36,37 @@ describe('renderBlock', () => {
       'resource "aws_vpc" "main" {',
       '  cidr_block         = "10.0.0.0/16"',
       '  enable_dns_support = true',
-      '  tags               = {',
+      '  tags = {', // a multi-line value is not aligned with the run above it
       '    Name = "lab"',
       '  }',
       '  lifecycle {',
       '    prevent_destroy = false',
       '  }',
+      '}',
+    ]);
+  });
+
+  it('starts a new alignment run after a comment or a multi-line map, as terraform fmt does', () => {
+    const lines = renderBlock('resource "x" "y"', [
+      ['a', expr('1')],
+      { comment: 'note' },
+      ['longer_name', expr('2')],
+      ['depends_on', [expr('z')]],
+      ['tags', { Name: str('n') }],
+      ['b', expr('3')],
+      ['empty', {}],
+    ]);
+    expect(lines).toEqual([
+      'resource "x" "y" {',
+      '  a = 1',
+      '  # note',
+      '  longer_name = 2',
+      '  depends_on  = [z]',
+      '  tags = {',
+      '    Name = "n"',
+      '  }',
+      '  b     = 3', // an empty map fits on one line, so it joins the run
+      '  empty = {}',
       '}',
     ]);
   });
