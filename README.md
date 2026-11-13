@@ -180,7 +180,7 @@ Rules AWS cannot express are reported, not guessed: an ACL line that matches onl
 
 Write a function from `{ topology, layout, name }` to `{ fileName, mime, text, notes }` (see `src/interop/types.ts`) and add it to `EXPORTERS` in `src/interop/index.ts`. The Export dialog lists it, previews it and downloads it. Exporters are pure TypeScript with no React or DOM, so they are easy to test.
 
-## Phase 5: problems (in progress)
+## Phase 5: problems
 
 Networky is becoming a LeetCode-style place to learn computer networks, with the simulator built in.
 
@@ -191,7 +191,7 @@ Networky is becoming a LeetCode-style place to learn computer networks, with the
 - **XP and levels**: easy 10, medium 20, hard 40 XP, scaled by your best hinted score, once per problem. Saved in this browser only, so it is motivation, not a ranking (ranked XP needs the phase 6 server).
 - **Learn** (`#/learn`) groups problems into stage-wise tracks; **Playground** (`#/playground`) is the free workspace.
 
-Grading runs in a Web Worker with a timeout (`src/grading/gradeClient.ts`), so a looping network never freezes the page. Problems live in `src/problems/catalog/`, one module each, and CI checks every one: the start network must fail, the reference must score 100%, every planted wrong solution must fail (randomized problems on 25 seeds), and for every problem solved on a router or switch the commands its hints quote are typed into the CLI and must pass all tests (`cliSolutions.test.ts`). Progress is stored in its own IndexedDB database and validated on every read. Features drawn in mockups but not built yet are listed in `docs/deferred.md`.
+Grading runs in a Web Worker with a timeout (`src/grading/gradeClient.ts`), so a looping network never freezes the page. Problems live in `src/problems/catalog/`, one module each, and CI checks every one: the start network must fail, the reference must score 100%, every planted wrong solution must fail (randomized problems on 25 seeds), and for every problem solved on a router or switch the commands its hints quote are typed into the CLI and must pass all tests (`cliSolutions.test.ts`). Progress is stored in its own IndexedDB database and validated on every read. Design and reasons: `docs/grading.md`. Adding a problem: `docs/problems.md`. Features drawn in mockups but not built yet: `docs/deferred.md`.
 
 ## Tests
 
