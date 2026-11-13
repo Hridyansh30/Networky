@@ -9,6 +9,7 @@ import { z } from 'zod';
 import type { CheckRegistry } from '../grading/checks';
 import type { TestCase, Visibility } from '../grading/types';
 import type { Layout, Topology } from '../model/types';
+import type { PredictQuestion } from './predict';
 import type { Rng } from './random';
 
 /** The values one variant of a randomized problem uses, by placeholder key. */
@@ -36,8 +37,15 @@ export interface ProblemSpec {
   type: ProblemType;
   /** Plain text. Rendered as text, never as HTML. */
   statement: string;
+  /** Empty for predict problems. */
   requirements: Requirement[];
+  /** Empty for predict problems. */
   tests: TestCase[];
+  /**
+   * Predict problems only: the questions asked about the start network.
+   * Their text and traffic may use {{key}} placeholders like everything else.
+   */
+  questions?: PredictQuestion[];
   /**
    * Randomized problems only: the values for one seed. Statement, hints and
    * test params may then use {{key}} placeholders (see params.ts).
@@ -69,7 +77,6 @@ const staticPart = z
     solution: z.string().min(1).max(4000).optional(),
     requirements: z
       .array(z.object({ id, text: z.string().min(1).max(300), hints: z.tuple([z.string().min(1), z.string().min(1), z.string().min(1)]) }).strict())
-      .min(1)
       .max(20),
     tests: z
       .array(
@@ -83,8 +90,21 @@ const staticPart = z
           })
           .strict(),
       )
-      .min(1)
       .max(60),
+    questions: z
+      .array(
+        z
+          .object({
+            id,
+            prompt: z.string().min(1).max(400),
+            traffic: z.union([z.object({ kind: z.literal('ping'), from: z.string().min(1).max(64), to: z.string().min(1).max(45) }).strict(), z.object({ kind: z.literal('tcp'), from: z.string().min(1).max(64), to: z.string().min(1).max(45), port: z.number().int().min(1).max(65535) }).strict()]),
+            choices: z.array(z.enum(['success', 'refused', 'unreachable', 'prohibited', 'ttl-exceeded', 'lost'])).min(2).max(6),
+            explanation: z.string().min(1).max(1500),
+          })
+          .strict(),
+      )
+      .max(10)
+      .optional(),
   })
   .passthrough();
 
@@ -97,6 +117,18 @@ export function validateSpec(spec: ProblemSpec, checks: CheckRegistry): string[]
   const errors: string[] = [];
   const parsed = staticPart.safeParse(spec);
   if (!parsed.success) return parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+  if (spec.type === 'predict') {
+    // A predict problem asks questions instead of running tests.
+    const qs = spec.questions ?? [];
+    if (!qs.length) errors.push('a predict problem needs at least one question');
+    if (new Set(qs.map((q) => q.id)).size !== qs.length) errors.push('question ids repeat');
+    for (const q of qs) if (new Set(q.choices).size !== q.choices.length) errors.push(`question ${q.id}: a choice repeats`);
+    if (spec.tests.length || spec.requirements.length) errors.push('a predict problem has questions, not tests or requirements');
+    return errors;
+  }
+  if (spec.questions) errors.push('only predict problems have questions');
+  if (!spec.requirements.length) errors.push('no requirements');
+  if (!spec.tests.length) errors.push('no tests');
   const reqIds = new Set(spec.requirements.map((r) => r.id));
   if (reqIds.size !== spec.requirements.length) errors.push('requirement ids repeat');
   const testIds = new Set(spec.tests.map((t) => t.id));
@@ -128,4 +160,17 @@ export function visibilityOf(test: TestCase, difficulty: Difficulty, checks: Che
   if (difficulty === 'easy') return 'shown';
   if (difficulty === 'medium') return checks.get(test.check.kind)?.behaviour ? 'shown' : 'hidden';
   return 'hidden';
+}
+
+/** What an author writes for a predict problem; the rest of ProblemSpec is filled in. */
+export type PredictSpec = Omit<ProblemSpec, 'type' | 'requirements' | 'tests' | 'reference' | 'wrong' | 'questions' | 'solution'> & { questions: PredictQuestion[] };
+
+/**
+ * A predict problem: a finished network and questions about what traffic on
+ * it will do. There is nothing to configure, so there are no tests, no
+ * reference and no wrong solutions; verifyProblem checks the questions
+ * instead (every real outcome must be among the choices offered).
+ */
+export function predictProblem(p: PredictSpec): ProblemSpec {
+  return { ...p, type: 'predict', requirements: [], tests: [], reference: p.start, wrong: [] };
 }

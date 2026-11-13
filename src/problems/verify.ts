@@ -3,10 +3,13 @@
 //   - the start network does NOT solve it (otherwise there is nothing to do)
 //   - the reference solution scores 100%
 //   - every wrong solution fails at least one test
+// A predict problem has questions instead: each one's real outcome must be
+// among the choices it offers.
 // CI runs this on every problem; a randomized problem runs it on many seeds.
 import { registry, type CheckRegistry } from '../grading/checks';
 import { grade, solved } from '../grading/grade';
 import { instantiate } from './params';
+import { actualOutcome } from './predict';
 import { validateSpec, type ProblemSpec } from './spec';
 
 export function verifyProblem(spec: ProblemSpec, seeds: readonly (number | undefined)[] = [undefined], checks: CheckRegistry = registry()): string[] {
@@ -22,6 +25,21 @@ export function verifyProblem(spec: ProblemSpec, seeds: readonly (number | undef
     }
     for (const e of validateSpec(p, checks)) problems.push(`${at}: ${e}`);
     if (problems.length) continue;
+    if (p.type === 'predict') {
+      // The answer is whatever the network does, so the only thing that can be
+      // wrong is the list of choices: the real outcome must be offered.
+      const start = p.start(p.values);
+      for (const q of p.questions ?? []) {
+        try {
+          const actual = actualOutcome(start, q);
+          if (actual === 'pending') problems.push(`${at}: question ${q.id} never finishes`);
+          else if (!q.choices.includes(actual)) problems.push(`${at}: question ${q.id} really ends as '${actual}', which is not one of its choices`);
+        } catch (e) {
+          problems.push(`${at}: ${(e as Error).message}`);
+        }
+      }
+      continue;
+    }
     if (solved(grade(p.start(p.values), p, { checks, seed }))) problems.push(`${at}: the start network already solves it`);
     const ref = grade(p.reference(p.values), p, { checks, seed });
     if (!solved(ref)) problems.push(`${at}: the reference scores ${ref.score}/${ref.max}: ${ref.tests.filter((t) => !t.pass).map((t) => `${t.id} (${t.detail})`).join('; ')}`);

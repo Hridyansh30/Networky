@@ -53,6 +53,7 @@ export function instantiate(spec: ProblemSpec, seed?: number): ProblemSpec & { s
     statement: fill(spec.statement, values),
     requirements: spec.requirements.map((r) => ({ ...r, text: fill(r.text, values), hints: r.hints.map((h) => fill(h, values)) as [string, string, string] })),
     tests: spec.tests.map((t): TestCase => ({ ...t, check: fillCheck(t.check, values) })),
+    questions: spec.questions?.map((q) => ({ ...q, prompt: fill(q.prompt, values), explanation: fill(q.explanation, values), traffic: fillValue(q.traffic, values) as typeof q.traffic })),
     start: () => spec.start(values),
     reference: () => spec.reference(values),
     wrong: spec.wrong.map((w) => () => w(values)),

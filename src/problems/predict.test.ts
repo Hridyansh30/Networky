@@ -20,3 +20,37 @@ describe('predict questions', () => {
     expect(ssh.choices).toContain(gradePrediction(office(), ssh, 'success').actual);
   });
 });
+
+describe('predict problems as specs', async () => {
+  const { registry } = await import('../grading/checks');
+  const { instantiate } = await import('./params');
+  const { predictProblem, validateSpec } = await import('./spec');
+  const { verifyProblem } = await import('./verify');
+  const checks = registry();
+  const base = predictProblem({ slug: 'p', version: 1, title: 'P', topic: 'NAT & ACL', difficulty: 'medium', statement: 'Read the ACL.', questions: [ssh], start: office });
+
+  it('a well-formed one validates and verifies', () => {
+    expect(validateSpec(base, checks)).toEqual([]);
+    expect(verifyProblem(base)).toEqual([]);
+  });
+
+  it('finds the mistakes an author makes', () => {
+    expect(validateSpec({ ...base, questions: [] }, checks)).toContain('a predict problem needs at least one question');
+    expect(validateSpec({ ...base, questions: [ssh, ssh] }, checks)).toContain('question ids repeat');
+    expect(validateSpec({ ...base, questions: [{ ...ssh, choices: ['refused', 'refused'] }] }, checks)).toContain('question ssh: a choice repeats');
+    expect(validateSpec({ ...base, type: 'configure' }, checks)).toContain('only predict problems have questions');
+  });
+
+  it('fails verification when the real outcome is not offered, or the device does not exist', () => {
+    expect(verifyProblem({ ...base, questions: [{ ...ssh, choices: ['success', 'refused'] }] })).toEqual(["p: question ssh really ends as 'prohibited', which is not one of its choices"]);
+    expect(verifyProblem({ ...base, questions: [{ ...ssh, traffic: { kind: 'ping', from: 'Nobody', to: '10.0.0.1' } }] })).toEqual(['p: ssh: no device Nobody']);
+  });
+
+  it('fills placeholders in a randomized question, keeping a port a number', () => {
+    const random = { ...base, params: () => ({ port: 22, who: 'PC1' }), questions: [{ ...ssh, prompt: '{{who}} opens TCP {{port}}.', traffic: { kind: 'tcp' as const, from: '{{who}}', to: '203.0.113.80', port: '{{port}}' as unknown as number } }] };
+    const v = instantiate(random, 7);
+    expect(v.questions![0].prompt).toBe('PC1 opens TCP 22.');
+    expect(v.questions![0].traffic).toEqual({ kind: 'tcp', from: 'PC1', to: '203.0.113.80', port: 22 });
+    expect(verifyProblem(random, [7])).toEqual([]);
+  });
+});
