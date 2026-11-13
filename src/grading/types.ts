@@ -57,7 +57,18 @@ export interface CheckPlugin<P = unknown> {
   /** Behaviour checks send traffic; config checks only read settings. Used to fade tests by difficulty. */
   readonly behaviour: boolean;
   run(ctx: GradeContext, params: P): CheckResult;
+  /**
+   * Behaviour checks that send traffic say how to send it again, so the
+   * problem page can replay a failed test in Simulation mode ("Show me").
+   */
+  replay?(params: P): ReplayAction;
 }
+
+/** Traffic to re-send on the learner's own network, naming hosts by hostname. */
+export type ReplayAction =
+  | { kind: 'ping'; from: string; to: string }
+  | { kind: 'tcp'; from: string; to: string; port: number }
+  | { kind: 'http'; from: string; url: string };
 
 /** A check plus its params, as written in a problem. */
 export interface CheckCall {

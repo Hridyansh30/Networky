@@ -22,6 +22,7 @@ export const httpCheck: CheckPlugin<Params> = {
   schema,
   behaviour: true,
   describe: (p) => (p.expect === 'loads' ? `${p.from} opens ${p.url}${p.contains ? ` and sees "${p.contains}"` : ''}` : `${p.from} cannot open ${p.url}`),
+  replay: (p) => ({ kind: 'http', from: p.from, url: p.url }),
   run(ctx, p) {
     const src = ctx.device(p.from);
     if (!src) return { pass: false, detail: `There is no device named ${p.from}.` };

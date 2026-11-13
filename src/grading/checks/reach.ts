@@ -12,4 +12,5 @@ export const reachCheck: CheckPlugin<Params> = {
   behaviour: true,
   describe: (p) => `ping ${p.from} → ${p.to} ${OUTCOME_WORDS[p.expect]}`,
   run: (ctx, p) => probeCheck(ctx, p.from, { kind: 'ping', destination: p.to }, p.expect),
+  replay: (p) => ({ kind: 'ping', from: p.from, to: p.to }),
 };

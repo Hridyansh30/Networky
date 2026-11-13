@@ -12,4 +12,5 @@ export const tcpCheck: CheckPlugin<Params> = {
   behaviour: true,
   describe: (p) => `TCP ${p.from} → ${p.to}:${p.port} ${OUTCOME_WORDS[p.expect]}`,
   run: (ctx, p) => probeCheck(ctx, p.from, { kind: 'tcp', destination: p.to, port: p.port }, p.expect),
+  replay: (p) => ({ kind: 'tcp', from: p.from, to: p.to, port: p.port }),
 };
