@@ -249,7 +249,7 @@ function deliver(sim: SimApi, device: Device, packet: Ipv6Packet) {
     return;
   }
   const probe = m.id !== undefined ? sim.findProbe(m.id) : undefined;
-  if (!probe || probe.seq !== m.seq) return;
+  if (!probe || probe.seq !== m.seq || probe.sourceDeviceId !== device.id) return; // see deliverLocal in simulation.ts
   const rtt = sim.tick - probe.sentAt;
   if (m.type === 'echo-reply') sim.finishProbe(probe, 'success', `reply from ${packet.src}`, rtt, packet.src);
   else if (m.type === 'time-exceeded') sim.finishProbe(probe, 'ttl-exceeded', `hop limit expired at ${packet.src}`, rtt, packet.src);
@@ -372,7 +372,7 @@ export const ipv6Plugin: EnginePlugin = {
       if (p.forwarded) error6(sim, device, sim.topology.interfaces[p.forwarded], p.packet, 'unreachable');
       else if (p.packet.l4.id !== undefined) {
         const probe = sim.findProbe(p.packet.l4.id);
-        if (probe) sim.finishProbe(probe, 'unreachable', `no NDP answer from ${p.nextHop}`);
+        if (probe && probe.sourceDeviceId === device.id) sim.finishProbe(probe, 'unreachable', `no NDP answer from ${p.nextHop}`);
       }
     }
   },

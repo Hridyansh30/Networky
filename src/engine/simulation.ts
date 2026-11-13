@@ -554,7 +554,10 @@ export class Simulation implements SimApi {
       return;
     }
     const probe = this.findProbe(icmp.id);
-    if (!probe || probe.seq !== icmp.seq) return;
+    // Only the host that sent the probe can learn its fate. An ICMP error
+    // about a dropped echo REPLY goes to the replying host, and must not
+    // tell the original sender anything: that sender just times out.
+    if (!probe || probe.seq !== icmp.seq || probe.sourceDeviceId !== device.id) return;
     const rtt = this.tick - probe.sentAt;
     if (icmp.type === 'echo-reply') this.finishProbe(probe, 'success', `reply from ${packet.src}`, rtt, packet.src);
     else if (icmp.type === 'time-exceeded') this.finishProbe(probe, 'ttl-exceeded', `TTL expired at ${packet.src}`, rtt, packet.src);
@@ -712,7 +715,7 @@ export class Simulation implements SimApi {
       } else {
         const ids = probeIdsOf(p.packet);
         const probe = ids && this.findProbe(ids.id);
-        if (probe) this.finishProbe(probe, 'unreachable', `no ARP reply from ${p.nextHop}`);
+        if (probe && probe.sourceDeviceId === device.id) this.finishProbe(probe, 'unreachable', `no ARP reply from ${p.nextHop}`);
       }
     }
     for (const p of this.plugins) p.onIdle?.(this);

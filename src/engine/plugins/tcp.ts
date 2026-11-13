@@ -8,17 +8,31 @@
 // so extended ACLs ('deny tcp any host X eq 80') and PAT can be tested with
 // real ports. No data is sent after the handshake.
 
-import { CATALOG } from '../../model/catalog';
+import { CATALOG, isHostKind } from '../../model/catalog';
 import { isValidIPv4 } from '../../model/ip';
+import { PORTS, servicesOf } from '../../model/services';
 import type { Device } from '../../model/types';
 import { isTcp, type Ipv4Packet, type TcpSegment } from '../packets';
 import type { EnginePlugin, Probe, SimApi } from '../plugin';
+import { tcpListener } from './apps/services';
 
-/** Well-known services each kind of device listens on. */
+/**
+ * Management services that are always on and are not modelled further.
+ * Web, mail, FTP, DNS and chat are NOT here: whether those ports are open
+ * follows the device's Services settings, so a connection test agrees with
+ * what the Services tab says (FTP switched off = port 21 refuses).
+ */
 export const LISTENING: Partial<Record<Device['kind'], number[]>> = {
-  server: [21, 22, 23, 25, 53, 80, 443],
+  server: [22, 23, 443],
   router: [22, 23],
 };
+
+/** Is anything listening on this TCP port of this device? */
+export function isListening(device: Device, port: number): boolean {
+  if ((LISTENING[device.kind] ?? []).includes(port)) return true;
+  if (port === PORTS.dns) return isHostKind(device.kind) && !!servicesOf(device).dns?.enabled;
+  return tcpListener(device, port) !== undefined;
+}
 
 export const EPHEMERAL_BASE = 49152;
 
@@ -40,7 +54,7 @@ function start(sim: SimApi, probe: Probe): Probe {
 
 function onSegment(sim: SimApi, device: Device, packet: Ipv4Packet, seg: ProbeSegment) {
   if (seg.flags === 'syn') {
-    const open = (LISTENING[device.kind] ?? []).includes(seg.dstPort);
+    const open = isListening(device, seg.dstPort);
     sim.logEvent({ deviceId: device.id, kind: 'receive', text: `${device.hostname} receives TCP SYN for port ${seg.dstPort}: ${open ? 'a service listens, answers SYN-ACK' : 'nothing listens, answers RST'}` });
     const reply: ProbeSegment = { ...seg, srcPort: seg.dstPort, dstPort: seg.srcPort, flags: open ? 'syn-ack' : 'rst' };
     sim.sendIpv4(device, { kind: 'ipv4', src: packet.dst, dst: packet.src, ttl: 64, l4: reply });
