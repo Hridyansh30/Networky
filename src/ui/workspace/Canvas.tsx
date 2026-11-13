@@ -1,4 +1,4 @@
-import { Background, ConnectionMode, MiniMap, ReactFlow, applyNodeChanges, useReactFlow, useViewport, type Connection, type IsValidConnection, type NodeChange } from '@xyflow/react';
+import { Background, ConnectionMode, MiniMap, ReactFlow, applyNodeChanges, useReactFlow, useUpdateNodeInternals, useViewport, type Connection, type IsValidConnection, type NodeChange } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isHostKind } from '../../model/catalog';
 import { connectionProblem } from '../../model/ops';
@@ -67,6 +67,15 @@ export function Canvas() {
     const t = setTimeout(() => flow.fitView({ maxZoom: 1.1, padding: 0.2, duration: 200 }), 60);
     return () => clearTimeout(t);
   }, [generation, flow]);
+
+  // A replaced network can reuse device ids with different ports (a problem's
+  // "Start over" rebuilds the same hostnames with new port ids). React Flow
+  // caches each node's handles by node id, so tell it to measure them again;
+  // otherwise the cables have no handle to attach to and are not drawn.
+  const updateNodeInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    updateNodeInternals(Object.keys(useTopologyStore.getState().topology.devices));
+  }, [generation, updateNodeInternals]);
 
   const onNodesChange = useCallback((changes: NodeChange<DeviceNodeType>[]) => {
     const store = useTopologyStore.getState();
