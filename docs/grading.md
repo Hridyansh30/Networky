@@ -70,6 +70,15 @@ submits; opening it before the first solve sets that problem's XP to zero.
 XP is `difficulty base x best hinted score`, counted once per problem
 (`src/problems/xp.ts`), so repeating an easy problem earns nothing.
 
+**Predict problems are scored on the first attempt.** An answer is final and
+its explanation appears at once, so a second attempt proves memory, not
+understanding. The share right on the first complete attempt is stored as
+`firstTry` and is what XP uses; a later all-correct attempt marks the problem
+solved but cannot raise that share. Answers are judged against the problem's
+own start network (`problemStore.answer`), not the canvas, so editing the
+network changes nothing. They are judged on the main thread: the network is
+authored and verified in CI, so it cannot be one that never settles.
+
 **Progress is a separate database and is never trusted.** Rows live in
 IndexedDB `networky-progress`, apart from projects, and every row is parsed
 with zod on read. A row edited in devtools into a bad shape is dropped. A row
@@ -91,8 +100,8 @@ a leaderboard has to wait for a server that re-grades submissions.
 ## Limits today
 
 - Everything is local to one browser. No accounts, no sync, no ranking.
-- 30 problems, all configure or troubleshoot. Predict questions have an
-  engine (`src/problems/predict.ts`) but no page yet.
+- 36 problems: 30 configure or troubleshoot, 6 predict. None of the predict
+  problems is randomized yet.
 - The problem workspace is tight below about 1440 px wide.
 - See [deferred.md](deferred.md) for everything designed but not built.
 

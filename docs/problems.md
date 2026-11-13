@@ -10,7 +10,7 @@ one. How the tests are run is in [grading.md](grading.md).
 | --- | --- |
 | `slug` | The URL id (`#/problems/<slug>`). Saved progress is keyed by it, so never rename one. |
 | `version` | Bump it whenever the tests change. A learner's old attempt is then dropped, their solved mark and best score are kept. |
-| `title`, `topic`, `difficulty`, `type` | `topic` must be one of `TOPICS` in `catalog/index.ts`. `type` is `configure` or `troubleshoot`. |
+| `title`, `topic`, `difficulty`, `type` | `topic` must be one of `TOPICS` in `catalog/index.ts`. `type` is `configure`, `troubleshoot` or `predict` (see below). |
 | `statement` | Plain text, rendered as text (never HTML). Say what must be true at the end, not which button to press. |
 | `requirements` | What the learner must achieve, each with exactly three hints: the idea, where to look, the exact fix. |
 | `tests` | Test cases. Each names a requirement, a number of points and a check (`kind` + `params`). |
@@ -72,6 +72,32 @@ Visibility is decided by difficulty: easy shows every test, medium shows the
 ones that send traffic and hides the config checks, hard hides everything
 unless a test says `visibility: 'shown'`. Give a hard problem at least one
 shown test so **Run** is not useless.
+
+## Predict problems
+
+A predict problem is a finished network plus questions about what traffic on
+it will do. Write it with `predictProblem({...})` from `spec.ts` (see
+`catalog/predicts.ts`): there are no requirements, tests, reference or wrong
+solutions. Each question has a `prompt`, the `traffic` to send (a ping or a
+TCP connection), the `choices` offered and an `explanation`.
+
+The answer is never written down. It is whatever the simulation does on the
+start network, so a question cannot go stale when the engine improves. Two
+things keep that honest:
+
+- `verifyProblem` fails if a question's real outcome is not among its choices.
+- `catalog/predicts.test.ts` pins the outcome each explanation was written
+  for. Add your problem to its table. If the engine later behaves
+  differently, that test fails and you re-read the explanation.
+
+Good predict questions come in pairs that look alike and end differently
+(the same missing route seen from both ends; a refused port next to a
+filtered one). A problem whose questions all have the same answer is
+rejected by the test.
+
+Writing these found two engine bugs, which is a reason to keep writing them:
+a ping whose reply was dropped on the way back was reported as "unreachable"
+to the sender, and a TCP test ignored the Services settings.
 
 ## Randomized problems
 
