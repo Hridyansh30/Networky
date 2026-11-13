@@ -11,6 +11,7 @@
 import { parseRule } from './acl';
 import {
   addDevice,
+  addIpv6StaticRoute,
   addSubinterface,
   addStaticRoute,
   connect,
@@ -19,6 +20,7 @@ import {
   setDefaultGateway,
   setDefaultGatewayV6,
   setDhcpPools,
+  setInterfaceAdmin,
   setInterfaceIp,
   setInterfaceOptions,
   setNat,
@@ -28,6 +30,7 @@ import {
   setSwitchport,
   type InterfacePatch,
 } from './ops';
+import { servicesOf, setDnsServer, setServices, type ServicesConfig } from './services';
 import type { Acl, CableType, DeviceKind, DhcpPool, Layout, NatConfig, RoutingNetwork } from './types';
 
 export class Draft {
@@ -111,6 +114,26 @@ export class Draft {
   }
   stpPriority(name: string, priority: number) {
     this.t = setStpPriority(this.t, this.byName[name], priority);
+    return this;
+  }
+  /** `no shutdown` / `shutdown` on a port. */
+  admin(name: string, port: string, up: boolean) {
+    this.t = setInterfaceAdmin(this.t, this.port(name, port), up);
+    return this;
+  }
+  route6(name: string, prefix: string, prefixLength: number, nextHop: string) {
+    this.t = addIpv6StaticRoute(this.t, this.byName[name], { prefix, prefixLength, nextHop });
+    return this;
+  }
+  /** The DNS server a host asks. */
+  dns(name: string, server: string) {
+    this.t = setDnsServer(this.t, this.byName[name], server);
+    return this;
+  }
+  /** Change a host's services, starting from what it runs now (a server's defaults included). */
+  services(name: string, change: (now: ServicesConfig) => ServicesConfig) {
+    const id = this.byName[name];
+    this.t = setServices(this.t, id, change(structuredClone(servicesOf(this.t.devices[id]))));
     return this;
   }
   done() {

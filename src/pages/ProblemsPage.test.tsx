@@ -36,12 +36,13 @@ describe('Problems page', () => {
   it('filters by topic chip, difficulty and search', async () => {
     await renderPage();
     fireEvent.click(within(screen.getByRole('group', { name: 'Topic' })).getByRole('button', { name: 'Routing' }));
-    expect(rows().map((r) => r.textContent)).toEqual([expect.stringContaining('Route between two sites')]);
+    expect(rows()).toHaveLength(PROBLEMS.filter((p) => p.topic === 'Routing').length);
+    expect(rows().every((r) => r.textContent?.includes('Routing'))).toBe(true);
     fireEvent.click(within(screen.getByRole('group', { name: 'Topic' })).getByRole('button', { name: 'All' }));
     fireEvent.change(screen.getByLabelText('Difficulty'), { target: { value: 'hard' } });
     expect(rows()).toHaveLength(PROBLEMS.filter((p) => p.difficulty === 'hard').length);
     fireEvent.change(screen.getByLabelText('Difficulty'), { target: { value: 'all' } });
-    fireEvent.change(screen.getByLabelText('Search problems'), { target: { value: 'vlan' } });
+    fireEvent.change(screen.getByLabelText('Search problems'), { target: { value: 'same subnet' } });
     expect(rows().map((r) => r.textContent)).toEqual([expect.stringContaining('Same subnet, no ping')]);
     fireEvent.change(screen.getByLabelText('Search problems'), { target: { value: 'zzz' } });
     expect(screen.getByText('No problems match those filters.')).toBeTruthy();

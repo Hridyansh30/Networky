@@ -137,7 +137,7 @@ export function ProblemsPage() {
           </section>
 
           <section className="entry-cards" aria-label="Ways to learn">
-            <EntryCard to={href({ page: 'learn' })} icon={<Icon.Layers size={26} />} title="Learning Path" text={`${TRACKS.length} stage-wise tracks, from basics to routing`} />
+            <EntryCard to={href({ page: 'learn' })} icon={<Icon.Layers size={26} />} title="Learning Path" text={`${TRACKS.length} stage-wise tracks, from first ping to IPv6`} />
             <EntryCard to={`${href({ page: 'learn' })}`} icon={<Icon.Flask size={26} />} title="Labs" text={`${EXAMPLES.length} guided, ready-made network scenarios`} />
             <EntryCard to={href({ page: 'workspace' })} icon={<Icon.Play size={24} />} title="Playground" text="Build any network you like, no tests attached" />
           </section>

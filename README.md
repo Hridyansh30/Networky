@@ -184,18 +184,18 @@ Write a function from `{ topology, layout, name }` to `{ fileName, mime, text, n
 
 Networky is becoming a LeetCode-style place to learn computer networks, with the simulator built in.
 
-- **Problems** (`#/problems`): each one is a start network plus test cases. Fix or configure the network in the normal workspace, press **Run** for the visible tests (free, changes nothing) or **Submit** for all of them, hidden ones included.
+- **Problems** (`#/problems`): 30 so far (12 easy, 12 medium, 6 hard) across IP addressing, switching, VLANs, routing, DHCP and DNS, applications, NAT and ACLs, and IPv6. Each one is a start network plus test cases. Fix or configure the network in the normal workspace, press **Run** for the visible tests (free, changes nothing) or **Submit** for all of them, hidden ones included.
 - **Tests fade with difficulty**: easy shows every test, medium hides the configuration checks, hard hides almost everything. Hard problems are randomized, so every attempt is a different network.
 - **Hints** go from the idea to the exact command, three per requirement, each costing 25% of that requirement's points. The **solution** unlocks after solving or three failed submits.
 - **Show me** replays a failed test's traffic in Simulation mode so you can watch where it dies.
 - **XP and levels**: easy 10, medium 20, hard 40 XP, scaled by your best hinted score, once per problem. Saved in this browser only, so it is motivation, not a ranking (ranked XP needs the phase 6 server).
 - **Learn** (`#/learn`) groups problems into stage-wise tracks; **Playground** (`#/playground`) is the free workspace.
 
-Grading runs in a Web Worker with a timeout (`src/grading/gradeClient.ts`), so a looping network never freezes the page. Problems live in `src/problems/catalog/`, one module each, and CI checks every one: the start network must fail, the reference must score 100%, every planted wrong solution must fail (randomized problems on 25 seeds). Progress is stored in its own IndexedDB database and validated on every read. Features drawn in mockups but not built yet are listed in `docs/deferred.md`.
+Grading runs in a Web Worker with a timeout (`src/grading/gradeClient.ts`), so a looping network never freezes the page. Problems live in `src/problems/catalog/`, one module each, and CI checks every one: the start network must fail, the reference must score 100%, every planted wrong solution must fail (randomized problems on 25 seeds), and for every problem solved on a router or switch the commands its hints quote are typed into the CLI and must pass all tests (`cliSolutions.test.ts`). Progress is stored in its own IndexedDB database and validated on every read. Features drawn in mockups but not built yet are listed in `docs/deferred.md`.
 
 ## Tests
 
-`npm test` runs about 500 tests:
+`npm test` runs about 570 tests:
 - model ops, validation and serialization, including the security cases;
 - every protocol plugin and a modularity check;
 - every lab exercise, booted and run;

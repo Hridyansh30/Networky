@@ -1,7 +1,7 @@
 // The built-in problems and the tracks that order them.
 //
-// Adding a problem: write one module in this folder (see firstPing.ts), add
-// it to PROBLEMS, and put its slug in a track. catalog.test.ts then checks
+// Adding a problem: write it in this folder (one file per topic, or its own
+// file; see firstPing.ts), and add it to a stage below. catalog.test.ts then checks
 // it like every other problem: valid spec, start not solved, reference 100%,
 // every wrong solution caught (randomized problems on many seeds).
 //
@@ -9,17 +9,21 @@
 // a problem's tests -> bump its version.
 
 import type { ProblemSpec } from '../spec';
+import { lastUsableHost, wrongMask, wrongSubnet } from './addressing';
 import { firstPing } from './firstPing';
+import { ipv6FirstAddress, ipv6StaticRoutes } from './ipv6';
 import { joinTheLan } from './joinTheLan';
 import { missingGateway } from './missingGateway';
+import { defaultRoute, ospfSlowPath, ospfThreeRouters, portShutDown, ripSilentRouter, threeFaults } from './routing';
+import { aclWebOnly, patOverload, secureTheEdge } from './security';
+import { dhcpClient, dhcpPool, dhcpRelay, dnsName, webServerDown } from './services';
 import { staticRoutes } from './staticRoutes';
+import { stpRoot, unplugged } from './switching';
+import { firstVlan, routerOnAStick, trunkLink, vlanOffice } from './vlans';
 import { wrongVlan } from './wrongVlan';
 
 /** The topic names a problem may use; the chips on the Problems page, in this order. */
-export const TOPICS = ['IP Addressing', 'Switching', 'VLANs', 'Routing', 'DHCP & DNS', 'NAT & ACL', 'IPv6', 'Applications'] as const;
-
-/** In list order: the # column on the Problems page. */
-export const PROBLEMS: readonly ProblemSpec[] = [firstPing, missingGateway, wrongVlan, staticRoutes, joinTheLan];
+export const TOPICS = ['IP Addressing', 'Switching', 'VLANs', 'Routing', 'DHCP & DNS', 'Applications', 'NAT & ACL', 'IPv6'] as const;
 
 export interface Track {
   id: string;
@@ -27,16 +31,26 @@ export interface Track {
   description: string;
   slugs: readonly string[];
 }
+type Stage = Omit<Track, 'slugs'> & { problems: readonly ProblemSpec[] };
 
 /**
- * Stage-wise paths. Soft order: every problem stays open, the track only
- * suggests what to do next (locking content teaches nothing).
+ * Stage-wise paths, each ordered from easy to hard. Soft order: every
+ * problem stays open, the track only suggests what to do next (locking
+ * content teaches nothing).
  */
-export const TRACKS: readonly Track[] = [
-  { id: 'fundamentals', title: 'Network fundamentals', description: 'Addresses, masks and gateways: what every host needs to talk.', slugs: ['first-ping', 'missing-gateway', 'join-the-lan'] },
-  { id: 'switching', title: 'Switching & VLANs', description: 'How switches split one wire into separate networks.', slugs: ['wrong-vlan'] },
-  { id: 'routing', title: 'Routing', description: 'Getting packets between networks, one hop at a time.', slugs: ['static-routes'] },
+const STAGES: readonly Stage[] = [
+  { id: 'fundamentals', title: 'Network fundamentals', description: 'Addresses, masks and gateways: what every host needs to talk.', problems: [firstPing, wrongSubnet, wrongMask, missingGateway, joinTheLan, lastUsableHost] },
+  { id: 'switching', title: 'Switching & VLANs', description: 'Cables, spanning tree, and splitting one switch into separate networks.', problems: [unplugged, firstVlan, wrongVlan, trunkLink, stpRoot, routerOnAStick, vlanOffice] },
+  { id: 'routing', title: 'Routing', description: 'Getting packets between networks: static routes, RIP and OSPF.', problems: [portShutDown, defaultRoute, staticRoutes, ripSilentRouter, ospfThreeRouters, threeFaults, ospfSlowPath] },
+  { id: 'services', title: 'IP services', description: 'DHCP, DNS and the web server: what users actually notice.', problems: [dhcpClient, dnsName, webServerDown, dhcpPool, dhcpRelay] },
+  { id: 'security', title: 'Network security', description: 'Access lists and NAT at the edge of the office.', problems: [aclWebOnly, patOverload, secureTheEdge] },
+  { id: 'ipv6', title: 'IPv6', description: 'The same ideas with longer addresses and no ARP.', problems: [ipv6FirstAddress, ipv6StaticRoutes] },
 ];
+
+/** In track order: the # column on the Problems page. */
+export const PROBLEMS: readonly ProblemSpec[] = STAGES.flatMap((t) => t.problems);
+
+export const TRACKS: readonly Track[] = STAGES.map(({ problems, ...t }) => ({ ...t, slugs: problems.map((p) => p.slug) }));
 
 const BY_SLUG = new Map(PROBLEMS.map((p) => [p.slug, p]));
 

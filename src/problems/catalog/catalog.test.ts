@@ -13,6 +13,17 @@ describe('catalog', () => {
     expect(new Set(PROBLEMS.map((p) => p.slug)).size).toBe(PROBLEMS.length);
   });
 
+  it('holds 30 problems: 12 easy, 12 medium, 6 hard, and every topic is used', () => {
+    const count = (d: string) => PROBLEMS.filter((p) => p.difficulty === d).length;
+    expect([PROBLEMS.length, count('easy'), count('medium'), count('hard')]).toEqual([30, 12, 12, 6]);
+    for (const t of TOPICS) expect(PROBLEMS.some((p) => p.topic === t), t).toBe(true);
+  });
+
+  it('randomizes most hard problems and explains every problem', () => {
+    expect(PROBLEMS.filter((p) => p.difficulty === 'hard' && p.params).length).toBeGreaterThanOrEqual(3);
+    for (const p of PROBLEMS) expect(p.solution, p.slug).toBeTruthy();
+  });
+
   it.each(PROBLEMS.map((p) => [p.slug, p] as const))('%s clears the quality bar', (_, p) => {
     expect(verifyProblem(p, SEEDS, checks)).toEqual([]);
   });
