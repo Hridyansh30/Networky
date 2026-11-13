@@ -42,5 +42,9 @@ export default defineConfig({
   base: './', // relative asset paths: the build works from any folder or host
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // The default 5 s is a guard against hangs, not a speed target. UI tests
+    // that render the 30-row Problems page take about 0.3 s alone but several
+    // seconds on a busy laptop running every file in parallel.
+    testTimeout: 30_000,
   },
 });

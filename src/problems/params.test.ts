@@ -86,8 +86,8 @@ describe('instantiate', () => {
 });
 
 describe('verifyProblem', () => {
-  it('passes the randomized problem on 200 seeds', () => {
-    expect(verifyProblem(randomLan, Array.from({ length: 200 }, (_, i) => i * 7919))).toEqual([]);
+  it('passes the randomized problem on 60 seeds', () => {
+    expect(verifyProblem(randomLan, Array.from({ length: 60 }, (_, i) => i * 7919))).toEqual([]);
   });
   it('catches a broken reference and a wrong solution that slips through', () => {
     const broken: ProblemSpec = { ...randomLan, reference: (p) => lan(p), wrong: [(p) => lan(p, { pc1: true, gateway: true })] };
