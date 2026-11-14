@@ -8,7 +8,7 @@ test('the workspace loads and renders without errors', async ({ page }) => {
   // The production CSP must be present (it is only added by `vite build`).
   const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
   expect(csp).toContain("script-src 'self'");
-  expect(csp).toContain("connect-src 'none'");
+  expect(csp).toContain("connect-src 'self'");
 
   // React mounted a visible UI (a blank page means the bundle crashed).
   await expect(page.locator('#root *:visible').first()).toBeVisible();

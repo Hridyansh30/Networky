@@ -9,6 +9,13 @@
 //   - autosave of the learner's network into the ProgressRepository, so a
 //     reload or a later visit continues where they left off.
 //
+// Two modes. Guest (not signed in): everything is graded and saved in this
+// browser, as in phase 5. Signed in (`remote`): Run still grades here (it is
+// free feedback and records nothing), but Submit, hints, answers, the
+// solution and restarts go to the server, which grades again and keeps the
+// only copy that counts. See remoteProgress.ts for why the actions are
+// swapped, not the repository.
+//
 // Policy decisions, each enforced here and tested:
 //   - Best score and XP only change on a Submit that solves the problem.
 //     Partial submits are feedback, not credit.
@@ -36,6 +43,9 @@ import { actualOutcome } from '../problems/predict';
 import { newSeed } from '../problems/random';
 import type { Params, ProblemSpec } from '../problems/spec';
 import { createProgressRepository, emptyProgress, type ProblemProgress, type ProgressRepository } from '../storage/progressRepository';
+import { newSubmissionId } from '../api/client';
+import type { ServerProblemRow } from '../api/types';
+import { fromAttempt, fromServer, remote, REMOTE_AUTOSAVE_MS, saveDraftOnExit } from './remoteProgress';
 import { useProjectStore } from './projectStore';
 import { useSimStore } from './simStore';
 import { useTopologyStore } from './topologyStore';
@@ -47,6 +57,10 @@ export type Variant = ProblemSpec & { seed?: number; values: Params };
 
 interface ProblemState {
   repo: ProgressRepository;
+  /** Signed in: the server is the record (see the header). */
+  remote: boolean;
+  /** Signed in: the server attempt behind the open problem. */
+  attemptId: string | null;
   /** Every saved progress row, by slug. */
   progress: Record<string, ProblemProgress>;
   loaded: boolean;
@@ -59,6 +73,8 @@ interface ProblemState {
   outcomes: Record<string, Expectation | 'pending'>;
 
   loadAll(): Promise<void>;
+  /** Switches to signed-in mode with the server's rows, or back to this browser's (null). */
+  useServer(rows: Record<string, ServerProblemRow> | null): Promise<void>;
   open(slug: string): Promise<boolean>;
   close(): void;
   run(): Promise<void>;
@@ -105,6 +121,7 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
   const write = async (p: ProblemProgress) => {
     const row = { ...p, updatedAt: Date.now() };
     set((s) => ({ progress: { ...s.progress, [row.slug]: row } }));
+    if (get().remote) return; // the server wrote its own copy already
     try {
       await get().repo.put(row);
     } catch (e) {
@@ -132,8 +149,78 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
     }
   };
 
+  /** Saves the learner's network a while after each edit. */
+  const watchEdits = () => {
+    unsubscribe?.();
+    unsubscribe = useTopologyStore.subscribe((s, prev) => {
+      if (s.topology === prev.topology && s.layout === prev.layout) return;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => void get().flush(), get().remote ? REMOTE_AUTOSAVE_MS : AUTOSAVE_MS);
+    });
+  };
+
+  /** Signed in: the server's active attempt (any device), or a new one. */
+  const openRemote = async (spec: ProblemSpec): Promise<boolean> => {
+    set({ error: null });
+    const a = await call(() => remote.attempt(spec.slug));
+    if (!a) return false;
+    const variant = instantiate(spec, a.seed ?? undefined) as Variant;
+    let file: NetworkyFile | null = null;
+    if (a.network) {
+      try {
+        file = deserialize(a.network);
+      } catch {
+        file = null;
+      }
+    }
+    const outcomes = Object.fromEntries(Object.entries(a.answers).map(([k, x]) => [k, x.actual as Expectation]));
+    set({ variant, attemptId: a.id, report: null, grading: null, outcomes });
+    showNetwork(file ?? startFile(variant), spec.title, spec.slug);
+    await write({ ...fromAttempt(a), attempt: attemptNow() });
+    watchEdits();
+    return true;
+  };
+
+  /**
+   * Signed in: the server grades the network again and records the result.
+   * The report shown is the server's, so what you see is what was recorded.
+   */
+  const submitRemote = async () => {
+    const v = get().variant;
+    const id = get().attemptId;
+    if (!v || !id || get().grading) return;
+    clearTimeout(saveTimer);
+    const network = attemptNow();
+    set({ grading: 'submit', error: null });
+    const r = await call(() => remote.submit(id, newSubmissionId(), network));
+    if (get().variant !== v) return;
+    set({ grading: null, report: r?.report ?? get().report });
+    if (r) merge(r.progress, { attempt: network, last: r.hinted ? { score: r.hinted.score, max: r.hinted.max } : undefined });
+  };
+
+  /** Signed in: runs a server call, showing its error instead of throwing. */
+  const call = async <T,>(f: () => Promise<T>): Promise<T | null> => {
+    try {
+      return await f();
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : String(e) });
+      return null;
+    }
+  };
+
+  /** Copies a server row into the open problem's row, keeping what only the client tracks. */
+  const merge = (row: ServerProblemRow, extra: Partial<ProblemProgress> = {}) => {
+    const v = get().variant;
+    const p = current(get());
+    if (!v || !p) return;
+    const fresh = fromServer(v.slug, v.version, row);
+    void write({ ...p, best: fresh.best, solved: fresh.solved, solutionFirst: fresh.solutionFirst, solutionOpened: fresh.solutionOpened, submits: fresh.submits, failedSubmits: fresh.failedSubmits, firstTry: fresh.firstTry, ...extra });
+  };
+
   return {
     repo: createProgressRepository(),
+    remote: false,
+    attemptId: null,
     progress: {},
     loaded: false,
     variant: null,
@@ -143,6 +230,7 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
     outcomes: {},
 
     async loadAll() {
+      if (get().remote) return;
       try {
         const rows = await get().repo.all();
         set({ progress: Object.fromEntries(rows.map((r) => [r.slug, r])), loaded: true });
@@ -151,11 +239,36 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       }
     },
 
+    async useServer(rows) {
+      await get().flush();
+      if (!rows) {
+        if (get().remote) set({ remote: false, attemptId: null, loaded: false, progress: {} });
+        if (!get().loaded) await get().loadAll();
+        return;
+      }
+      const was = get().remote ? get().progress : {};
+      const progress: Record<string, ProblemProgress> = {};
+      for (const [slug, row] of Object.entries(rows)) {
+        const spec = problemBySlug(slug);
+        // Keep what only an open attempt knows (network, hints, answers) on a refresh.
+        if (spec) progress[slug] = { ...was[slug], ...fromServer(slug, spec.version, row, { hints: was[slug]?.hints ?? {}, attempt: was[slug]?.attempt, seed: was[slug]?.seed, answers: was[slug]?.answers, last: was[slug]?.last }) };
+      }
+      for (const slug of Object.keys(was)) progress[slug] ??= was[slug];
+      if (get().remote) set({ progress, loaded: true });
+      else set({ remote: true, attemptId: null, progress, loaded: true });
+    },
+
     async open(slug) {
       const spec = problemBySlug(slug);
       if (!spec) return false;
       if (!get().loaded) await get().loadAll();
       await get().flush();
+      if (get().remote) {
+        const ok = await openRemote(spec);
+        // Signed out meanwhile (a 401): open it from this browser instead.
+        if (ok || get().remote) return ok;
+        if (!get().loaded) await get().loadAll();
+      }
       let saved = get().progress[slug] ?? null;
       if (saved && saved.specVersion !== spec.version) {
         // The tests changed: keep what was earned, start a fresh attempt.
@@ -179,13 +292,7 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       showNetwork(file ?? startFile(variant), spec.title, slug);
       if (!file) row.attempt = attemptNow();
       await write(row);
-
-      unsubscribe?.();
-      unsubscribe = useTopologyStore.subscribe((s, prev) => {
-        if (s.topology === prev.topology && s.layout === prev.layout) return;
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(() => void get().flush(), AUTOSAVE_MS);
-      });
+      watchEdits();
       return true;
     },
 
@@ -193,7 +300,7 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       void get().flush();
       unsubscribe?.();
       unsubscribe = undefined;
-      set({ variant: null, report: null, grading: null, error: null, outcomes: {} });
+      set({ variant: null, attemptId: null, report: null, grading: null, error: null, outcomes: {} });
     },
 
     async flush() {
@@ -202,7 +309,11 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       const p = current(get());
       if (!p || useProjectStore.getState().problem !== p.slug) return;
       const attempt = attemptNow();
-      if (attempt !== p.attempt) await write({ ...p, attempt });
+      if (attempt === p.attempt) return;
+      // Read before the first await: close() clears the attempt right after calling this.
+      const id = get().remote ? get().attemptId : null;
+      await write({ ...p, attempt });
+      if (id) await call(() => remote.saveDraft(id, attempt));
     },
 
     async run() {
@@ -210,6 +321,7 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
     },
 
     async submit() {
+      if (get().remote) return submitRemote();
       const report = await grade('submit');
       const p = current(get());
       if (!report || !p) return;
@@ -231,6 +343,12 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       if (!p || !get().variant?.requirements.some((r) => r.id === requirement)) return;
       const n = nextHint(p.hints, requirement);
       if (n === null) return;
+      const id = get().attemptId;
+      if (get().remote) {
+        const r = id && (await call(() => remote.hint(id, requirement)));
+        if (r) await write({ ...current(get())!, hints: { ...current(get())!.hints, [requirement]: r.level } });
+        return;
+      }
       await write({ ...p, hints: { ...p.hints, [requirement]: n } });
     },
 
@@ -239,6 +357,19 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       const p = current(get());
       const q = v?.questions?.find((x) => x.id === question);
       if (!v || !p || !q || !q.choices.includes(choice) || p.answers?.[question]) return;
+      if (get().remote) {
+        const id = get().attemptId;
+        const r = id && (await call(() => remote.answer(id, question, choice)));
+        if (!r) return;
+        const outcomes = { ...get().outcomes, ...Object.fromEntries(Object.entries(r.answers).map(([k, a]) => [k, a.actual as Expectation])) };
+        set({ outcomes });
+        const answers = Object.fromEntries(Object.entries(r.answers).map(([k, a]) => [k, a.choice]));
+        const all = v.questions!;
+        const done = all.every((x) => answers[x.id]);
+        const right = all.filter((x) => r.answers[x.id]?.correct).length;
+        merge(r.progress, { answers, ...(done ? { last: { score: right, max: all.length } } : {}) });
+        return;
+      }
       const actual = actualOutcome(v.start(v.values), q);
       const answers = { ...(p.answers ?? {}), [question]: choice };
       const outcomes = { ...get().outcomes, [question]: actual };
@@ -261,6 +392,12 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
     async openSolution() {
       const p = current(get());
       if (!p || !solutionUnlocked(p) || p.solutionOpened) return;
+      if (get().remote) {
+        const id = get().attemptId;
+        const r = id && (await call(() => remote.solution(id)));
+        if (r) merge(r.progress);
+        return;
+      }
       await write({ ...p, solutionOpened: true, solutionFirst: p.solutionFirst || !p.solved });
     },
 
@@ -279,6 +416,15 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
       const p = current(get());
       if (!v || !p) return;
       const spec = problemBySlug(v.slug)!;
+      if (get().remote) {
+        const a = await call(() => remote.restart(v.slug));
+        if (!a) return;
+        const variant = instantiate(spec, a.seed ?? undefined) as Variant;
+        set({ variant, attemptId: a.id, report: null, error: null, outcomes: {} });
+        useTopologyStore.getState().replaceAll(startFile(variant));
+        await write({ ...fromAttempt(a), attempt: attemptNow() });
+        return;
+      }
       const seed = spec.params ? newSeed() : undefined;
       const variant = instantiate(spec, seed) as Variant;
       set({ variant, report: null, error: null, outcomes: {} });
@@ -288,10 +434,22 @@ export const useProblemStore = create<ProblemState>()((set, get) => {
   };
 });
 
+// Signed in, edits reach the server every REMOTE_AUTOSAVE_MS. Closing the tab
+// in between would lose them, so the last change goes out as the page hides.
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    const s = useProblemStore.getState();
+    const p = s.variant && s.progress[s.variant.slug];
+    if (!s.remote || !s.attemptId || !p || !saveTimer || useProjectStore.getState().problem !== p.slug) return;
+    const { topology, layout } = useTopologyStore.getState();
+    saveDraftOnExit(s.attemptId, serialize({ topology, layout }));
+  });
+}
+
 /** Test helper: a clean store on a given repository. */
 export function resetProblemStore(repo: ProgressRepository) {
   unsubscribe?.();
   unsubscribe = undefined;
   clearTimeout(saveTimer);
-  useProblemStore.setState({ repo, progress: {}, loaded: false, variant: null, report: null, grading: null, error: null, outcomes: {} });
+  useProblemStore.setState({ repo, remote: false, attemptId: null, progress: {}, loaded: false, variant: null, report: null, grading: null, error: null, outcomes: {} });
 }

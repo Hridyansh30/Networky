@@ -729,3 +729,41 @@ table.data tr.clickable:hover td { background: var(--surface-2); }
   .topbar .xp { display: none; }
   .problem-name .save-state { display: none; }
 }
+
+/* ---- phase 6: account, engine banner ---- */
+.topnav-end { gap: var(--space-2); }
+.account { position: relative; }
+.account summary { list-style: none; cursor: pointer; display: flex; border-radius: 50%; }
+.account summary::-webkit-details-marker { display: none; }
+.account summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.account img, .account-initial { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border); }
+.account-initial { display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: var(--fw-medium); }
+.account-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 50; min-width: 230px; display: flex; flex-direction: column; padding: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.account-who { display: flex; flex-direction: column; padding: 8px 10px; }
+.account-stats { display: flex; flex-wrap: wrap; white-space: nowrap; gap: 4px 12px; padding: 4px 10px 10px; font-size: var(--fs-sm); color: var(--text-muted); border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.account-stats b { color: var(--text); }
+.account-menu a, .account-menu button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: none; border: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.account-menu a:hover, .account-menu button:hover { background: var(--surface-2); }
+.dev-signin { display: flex; gap: 6px; }
+.dev-signin input { width: 110px; padding: 5px 8px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.engine-banner { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 100; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); box-shadow: var(--shadow); max-width: calc(100vw - 32px); }
+.board-layout { width: 100%; max-width: 900px; margin: 0 auto; padding: var(--space-6) 16px; display: flex; flex-direction: column; gap: var(--space-4); }
+.board-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-4); }
+.board-head h1 { font-size: clamp(26px, 3vw, 34px); letter-spacing: -0.02em; }
+.board-head .seg button { padding: 6px 12px; border: none; background: none; border-radius: var(--radius-sm); color: var(--text-muted); font: inherit; cursor: pointer; }
+.board-head .seg button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.board-who { display: inline-flex; align-items: center; gap: 8px; }
+.board-who img, .account-initial.sm { width: 24px; height: 24px; border-radius: 50%; font-size: 12px; }
+.board-table tr.is-you td { background: var(--accent-soft); }
+.board-pages { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.board-you { margin: 0; }
+.import-banner { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 90; display: flex; align-items: center; gap: 10px; padding: 10px 14px; width: max-content; max-width: min(760px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--fs-sm); }
+.import-banner > span { flex: 1; }
+.import-error { color: var(--error); }
+@media (max-width: 640px) { .import-banner, .engine-banner { flex-wrap: wrap; } }
+.history { margin-top: var(--space-4); font-size: var(--fs-sm); }
+.history summary { cursor: pointer; color: var(--text-muted); }
+.history ol { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.history li { display: grid; grid-template-columns: 80px 60px 1fr; gap: 8px; }
+.history .ok { color: var(--success); font-weight: var(--fw-medium); }
+.history .bad { color: var(--error); }

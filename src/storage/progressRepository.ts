@@ -4,9 +4,13 @@
 // Same repository pattern as projects (projectRepository.ts), and a separate
 // IndexedDB database, so a bug in one can never corrupt the other:
 //
-//   today:  IndexedDbProgress, in the browser
+//   guests: IndexedDbProgress, in the browser
 //   tests:  MemoryProgress
-//   phase 6: an HTTP repository behind accounts, same interface
+//
+// Signed-in learners do NOT use an HTTP version of this interface, although
+// the phase 5 plan said so. put(row) would let the browser tell the server
+// its own score. Signed in, the problem store sends actions instead and the
+// server computes the row (src/store/remoteProgress.ts, docs/judge.md).
 //
 // Everything read back is validated with zod and the saved network goes
 // through deserialize() when it is opened. Browser storage can be edited by

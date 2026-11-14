@@ -18,6 +18,7 @@ export type Route =
   | { page: 'workspace'; projectId?: string }
   | { page: 'lab'; labId?: string }
   | { page: 'problems' }
+  | { page: 'leaderboard' }
   | { page: 'problem'; slug: string };
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -34,6 +35,8 @@ export function parseRoute(hash: string): Route {
       return { page: 'lab', labId: parts[1] && ID.test(parts[1]) ? parts[1] : undefined };
     case 'problems':
       return parts[1] && SLUG.test(parts[1]) ? { page: 'problem', slug: parts[1] } : { page: 'problems' };
+    case 'leaderboard':
+      return { page: 'leaderboard' };
     case 'playground':
       return { page: 'workspace', projectId: undefined };
     case 'workspace':

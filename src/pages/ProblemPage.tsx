@@ -13,6 +13,9 @@ import { problemBySlug } from '../problems/catalog';
 import type { PredictQuestion } from '../problems/predict';
 import { visibilityOf } from '../problems/spec';
 import { problemXp, XP_BY_DIFFICULTY } from '../problems/xp';
+import { useAccountStore } from '../store/accountStore';
+import { useApi } from '../api/useApi';
+import type { SubmissionSummary } from '../api/types';
 import { solutionUnlocked, SOLUTION_AFTER_FAILS, useProblemStore, type Variant } from '../store/problemStore';
 import { useProjectStore } from '../store/projectStore';
 import { showMe } from '../store/showMe';
@@ -58,6 +61,8 @@ async function openProblem(slug: string): Promise<boolean> {
       return false;
     }
   }
+  // Signed in or not decides where the attempt comes from: wait for that first.
+  await useAccountStore.getState().load();
   return useProblemStore.getState().open(slug);
 }
 
@@ -453,6 +458,7 @@ function TestsTab({ v }: { v: Variant }) {
           <TestRow key={t.id} t={t} shown={visibilityOf(t, v.difficulty, CHECKS) === 'shown'} result={byId.get(t.id)} />
         ))}
       </ol>
+      <SubmissionHistory slug={v.slug} />
     </div>
   );
 }
@@ -572,5 +578,30 @@ function SolutionTab({ v }: { v: Variant }) {
         <Icon.Download size={15} /> Load reference network
       </button>
     </div>
+  );
+}
+
+/** Signed in: the submissions the server recorded for this problem, newest first. */
+function SubmissionHistory({ slug }: { slug: string }) {
+  const remote = useProblemStore((s) => s.remote);
+  // A new submit changes `submits`, which re-fetches the list.
+  const submits = useProblemStore((s) => s.progress[slug]?.submits ?? 0);
+  const list = useApi<{ submissions: SubmissionSummary[] }>(remote ? `/submissions?slug=${slug}&n=${submits}` : null);
+  if (!remote || list.state !== 'ok' || !list.data.submissions.length) return null;
+  return (
+    <details className="history">
+      <summary>Your submissions ({list.data.submissions.length})</summary>
+      <ol>
+        {list.data.submissions.map((x) => (
+          <li key={x.id}>
+            <span className={x.passed ? 'ok' : 'bad'}>{x.passed ? 'Accepted' : 'Failed'}</span>
+            <span>
+              {x.score}/{x.max}
+            </span>
+            <span className="muted">{x.source === 'import' ? 'imported' : new Date(x.at).toLocaleString()}</span>
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
