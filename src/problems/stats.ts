@@ -51,3 +51,10 @@ export function continueWith(progress: Progress, problems: readonly ProblemSpec[
     .filter((s) => progress[s.slug] && !progress[s.slug].solved)
     .sort((a, b) => progress[b.slug].updatedAt - progress[a.slug].updatedAt)[0];
 }
+
+/**
+ * The Problems page shows a problem's acceptance rate only once this many
+ * learners tried it, so one learner's three failures never read as "25%".
+ * Shared by the server (which computes it) and the page (which explains it).
+ */
+export const ACCEPTANCE_MIN_TRIED = 20;

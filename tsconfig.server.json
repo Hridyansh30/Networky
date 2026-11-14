@@ -1,0 +1,10 @@
+{
+  // The API (server/). Separate from the app's tsconfig so the browser code
+  // never sees Node's types: in the app, `process` or `Buffer` stays an error.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["server", "vite.worker.config.ts"]
+}
