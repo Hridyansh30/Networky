@@ -57,6 +57,25 @@ synchronous JavaScript from outside. A new worker per request means no state
 leaks between grades. If workers are unavailable the same function runs on
 the main thread.
 
+**A work budget, not only a clock (phase 6).** The 20 s timer protects the
+tab, but it cannot be part of the verdict: a slow laptop would fail a
+network that a fast one passes, and the server must reach the same verdict
+as the browser. So the simulation also counts work, in units of one step
+plus one per frame delivered (`Simulation.work`), and a grade stops at
+`WORK_BUDGET` = 3,000 units (`src/grading/grade.ts`). The busiest network in
+the catalog needs 146, so a real solution never comes near it; a network
+that never goes quiet hits it, and the report says `limitExceeded`. Same
+network, same count, on every machine.
+
+**Deterministic ids and MACs (phase 6).** Grading builds networks with
+`seededIds` (`src/model/ids.ts`): device and link ids and MAC addresses come
+from a counter and a seeded generator, not from `crypto`. Building the same
+problem twice gives byte-identical networks (a test checks every problem),
+which is what lets the server and the browser agree on an STP election
+between equal priorities. The canvas still uses random ids, since two
+devices you add by hand must never collide. `ENGINE_VERSION` went to 2 for
+this change.
+
 **Only the slug and seed cross to the worker, not the spec.** A spec holds
 functions (the builders of its networks), and functions cannot be copied to
 another thread by `postMessage`. The worker looks the problem up in its own
@@ -94,12 +113,17 @@ a leaderboard has to wait for a server that re-grades submissions.
 - A saved attempt goes through the same `deserialize` validation as an
   opened project file; a damaged one is discarded and the start network is
   loaded.
-- The 20 s timeout plus the per-grade step budget bound the CPU a hostile
-  network can burn.
+- The work budget (3,000 units) bounds what a hostile network can make the
+  grader do, identically in the browser and on the server; the 20 s timeout
+  is the backstop for the tab.
+- Signed in, the server grades every Submit again and keeps the only record
+  that counts. See [judge.md](judge.md).
 
 ## Limits today
 
-- Everything is local to one browser. No accounts, no sync, no ranking.
+- Guests: everything is local to one browser, as before. Signed-in
+  learners: Submit, hints, answers and the solution go through the server
+  judge ([judge.md](judge.md)); Run stays local.
 - 36 problems: 30 configure or troubleshoot, 6 predict. None of the predict
   problems is randomized yet.
 - The problem workspace is tight below about 1440 px wide.

@@ -133,7 +133,7 @@ Apps send traffic through `runApp` (`src/apps/diskStore.ts`). In Simulation mode
 
 - Opened files are untrusted. `deserialize` rejects files over 2 MB, enforces count limits, and runs strict Zod schemas (unknown keys are refused). A JSON reviver blocks `__proto__`, `constructor` and `prototype` keys, which prevents prototype pollution.
 - Saved projects are stored as text and re-validated on every load.
-- The production build ships a Content-Security-Policy with no network access (`connect-src 'none'`) and no inline scripts. Set `frame-ancestors` as an HTTP header when deploying. Zod runs in jitless mode (`src/zodConfig.ts`, the first import in `main.tsx`), so the policy never needs `'unsafe-eval'`.
+- The production build ships a Content-Security-Policy that allows requests only to its own server (`connect-src 'self'`, the /api of phase 6) and no inline scripts. Set `frame-ancestors` as an HTTP header when deploying. Zod runs in jitless mode (`src/zodConfig.ts`, the first import in `main.tsx`), so the policy never needs `'unsafe-eval'`.
 - Terminal input is capped at 512 characters per line and scrollback at 2000 lines.
 - Web pages served by a simulated server are never given to the real browser as HTML. `apps/html.ts` parses them into an allow-list of tags (no attributes except a checked `href`), and React renders that tree as text. No `innerHTML` anywhere.
 - Passwords in mail and FTP accounts are stored in plain text on purpose, so you can watch them cross the wire, which is exactly why plain FTP and POP3 are unsafe.
@@ -189,18 +189,33 @@ Networky is becoming a LeetCode-style place to learn computer networks, with the
 - **Predict problems** give you a finished network and ask what a ping or connection will do. You answer before testing anything; the ping panel only appears once every answer is in. Each answer is final and shows the reason, then **Show me** replays it. The right answer is whatever the simulation does, never a stored value.
 - **Hints** go from the idea to the exact command, three per requirement, each costing 25% of that requirement's points. The **solution** unlocks after solving or three failed submits.
 - **Show me** replays a failed test's traffic in Simulation mode so you can watch where it dies.
-- **XP and levels**: easy 10, medium 20, hard 40 XP, scaled by your best hinted score, once per problem (for a predict problem: by the share you got right on your first attempt). Saved in this browser only, so it is motivation, not a ranking (ranked XP needs the phase 6 server).
+- **XP and levels**: easy 10, medium 20, hard 40 XP, scaled by your best hinted score, once per problem (for a predict problem: by the share you got right on your first attempt). As a guest it is saved in this browser; signed in, it comes from the server (phase 6).
 - **Learn** (`#/learn`) groups problems into stage-wise tracks; **Playground** (`#/playground`) is the free workspace.
 
 Grading runs in a Web Worker with a timeout (`src/grading/gradeClient.ts`), so a looping network never freezes the page. Problems live in `src/problems/catalog/`, one module each, and CI checks every one: the start network must fail, the reference must score 100%, every planted wrong solution must fail (randomized problems on 25 seeds), and for every problem solved on a router or switch the commands its hints quote are typed into the CLI and must pass all tests (`cliSolutions.test.ts`). Progress is stored in its own IndexedDB database and validated on every read. Design and reasons: `docs/grading.md`. Adding a problem: `docs/problems.md`. Features drawn in mockups but not built yet: `docs/deferred.md`.
 
+## Phase 6: accounts, server judge, leaderboard
+
+Sign in with GitHub and your progress lives in an account, on any device, and counts on the leaderboard. The rule behind it: **the server never takes the browser's word for a solve.** Run still grades in the browser; Submit sends the network and the server grades it again with the same pure engine, then rebuilds your XP and counts from its own records.
+
+- **Server judge** (`server/`, Hono on Cloudflare Pages Functions, D1): submits, hints, predict answers, the solution and restarts all go through it. Randomized problems get their seed from the server. Hidden test results come back without details.
+- **Leaderboard** (`#/leaderboard`): all time and this week, ranked by XP, ties to whoever got there first.
+- **Problems page**: acceptance rate per problem (once 20 learners tried) and the total number of solves.
+- **Submission history** on each problem, and an **account menu** with XP, solved and rank.
+- **One-time import** of the progress saved in this browser: saved networks are graded again, and only those that pass count.
+- **Deterministic grading**: seeded ids and MACs, and a work budget instead of a clock, so the browser and the server always agree (`ENGINE_VERSION` 2).
+- Guests and copies without a server work exactly as in phase 5.
+
+Free plans only. `npm run dev` runs the app and the API together with a local SQLite file and a "Dev sign in" box. Design, threat model and API: `docs/judge.md`. One-time production setup (D1, GitHub OAuth app, secrets): `docs/server-setup.md`.
+
 ## Tests
 
-`npm test` runs about 610 tests:
+`npm test` runs about 680 tests:
 - model ops, validation and serialization, including the security cases;
 - every protocol plugin and a modularity check;
 - every lab exercise, booted and run;
 - the CLI;
 - UI tests (jsdom) that type into a device's terminal and fill in the device window the way a user would.
 - grading: every check plugin, determinism, every catalog problem's quality bar, hints, XP, saved progress (including tampered rows), the grader worker's timeout;
+- the server: sign-in and sessions, CSRF and origin checks, the judge (re-grading, idempotent submits, rate limits, redaction, seeds), the one-time import, leaderboards, cache rebuild idempotence, and the real client stores driven against the real API (`server/__tests__/`);
 - import/export: every lab round-trips through Cisco export and import with no errors, every lab exports to well-formed Terraform, and the HCL injection cases. In CI, the `terraform` job also runs the real `terraform fmt -check` and `terraform validate` on every lab's export (see `docs/ci-cd.md`).

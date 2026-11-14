@@ -60,8 +60,12 @@ Rules of thumb, each learned from a problem that was wrong at first:
    and add that lazy way to `wrong` so CI proves it fails.
 2. **Negative tests need a positive twin.** "The guest cannot reach the
    engineers" is also true of a network with every cable pulled out.
-3. **Never depend on a tie.** MAC addresses are random per build, so an STP
-   election between equal priorities has a different winner each time.
+3. **Never depend on a tie.** Since phase 6 the grader builds networks with
+   deterministic MACs, so a tie between equal STP priorities now has the
+   same winner every time. Do not lean on that: the winner depends on build
+   order, which a harmless edit to the start network changes, and a learner
+   who adds a device on the canvas gets a random MAC. Set priorities so the
+   intended root wins on purpose.
 4. **Know the outcome word.** No route back gives `lost`; a host in another
    VLAN on the same subnet gives `unreachable`; a closed port gives `refused`;
    an ACL gives `prohibited`.
