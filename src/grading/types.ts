@@ -115,4 +115,6 @@ export interface GradeReport {
   tests: TestResult[];
   /** Set when the network never went quiet (e.g. a broadcast storm): every behaviour test failed for this reason. */
   networkError?: string;
+  /** True when grading stopped because the network used up the work budget (see WORK_BUDGET). */
+  limitExceeded?: boolean;
 }

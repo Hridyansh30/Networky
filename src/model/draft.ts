@@ -4,8 +4,10 @@
 //
 // Two id modes:
 //  - default: random ids, like devices dragged onto the canvas (the labs).
-//  - { stableIds: true }: a device's id is its hostname. Problems use this, so
-//    every build of a problem has the same device ids and one static layout
+//  - { stableIds: true }: a device's id is its hostname, and interface ids,
+//    link ids and MACs come from a seeded IdSource (model/ids.ts). Problems
+//    use this, so every build of a problem is byte-identical (the browser and
+//    the phase 6 judge build the same network) and one static layout
 //    (ProblemSpec.layout) fits every variant.
 
 import { parseRule } from './acl';
@@ -30,6 +32,7 @@ import {
   setSwitchport,
   type InterfacePatch,
 } from './ops';
+import { randomIds, seededIds, type IdSource } from './ids';
 import { servicesOf, setDnsServer, setServices, type ServicesConfig } from './services';
 import type { Acl, CableType, DeviceKind, DhcpPool, Layout, NatConfig, RoutingNetwork } from './types';
 
@@ -37,10 +40,14 @@ export class Draft {
   t = createTopology();
   layout: Layout = {};
   private byName: Record<string, string> = {};
-  constructor(private readonly ids: { stableIds?: boolean } = {}) {}
+  /** Seeded for stable builds, random otherwise. */
+  private readonly source: IdSource;
+  constructor(private readonly ids: { stableIds?: boolean; seed?: string } = {}) {
+    this.source = ids.stableIds ? seededIds(ids.seed ?? 'networky') : randomIds;
+  }
 
   dev(kind: DeviceKind, name: string, x: number, y: number) {
-    const r = addDevice(this.t, kind, { hostname: name, id: this.ids.stableIds ? name : undefined });
+    const r = addDevice(this.t, kind, { hostname: name, id: this.ids.stableIds ? name : undefined, ids: this.source });
     this.t = r.topology;
     this.byName[name] = r.deviceId;
     // Lab coordinates are written on a compact grid; spread them out so
@@ -53,7 +60,7 @@ export class Draft {
     return d.interfaceIds.find((i) => this.t.interfaces[i].name === port)!;
   }
   link(a: string, ap: string, b: string, bp: string, cable: CableType = 'copper-straight') {
-    this.t = connect(this.t, this.port(a, ap), this.port(b, bp), cable).topology;
+    this.t = connect(this.t, this.port(a, ap), this.port(b, bp), cable, { ids: this.source }).topology;
     return this;
   }
   ip(name: string, port: string, address: string, prefixLength: number) {
@@ -77,7 +84,7 @@ export class Draft {
     return this;
   }
   sub(router: string, port: string, vlan: number, address: string, prefixLength: number) {
-    const r = addSubinterface(this.t, this.port(router, port), vlan);
+    const r = addSubinterface(this.t, this.port(router, port), vlan, vlan, this.source);
     this.t = setInterfaceIp(r.topology, r.interfaceId, { address, prefixLength });
     return this;
   }

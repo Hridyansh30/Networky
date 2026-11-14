@@ -65,9 +65,10 @@ export const problemNumber = (slug: string): number => PROBLEMS.findIndex((p) =>
 
 /**
  * Today's challenge: the same problem for everyone on a given local date.
- * A pure function of the date, so it needs no server.
+ * A pure function of the date, so it needs no server. The caller passes the
+ * date: the core never reads the clock itself (see core.boundary.test.ts).
  */
-export function dailyProblem(date: Date = new Date()): ProblemSpec {
+export function dailyProblem(date: Date): ProblemSpec {
   const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
   return PROBLEMS[((day * 2654435761) >>> 0) % PROBLEMS.length];
 }

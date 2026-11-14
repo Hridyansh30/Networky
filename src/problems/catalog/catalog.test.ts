@@ -26,6 +26,17 @@ describe('catalog', () => {
     for (const p of PROBLEMS) expect(p.type === 'predict' ? p.questions?.every((q) => q.explanation) : p.solution, p.slug).toBeTruthy();
   });
 
+  it('builds every network identically every time (the judge and the browser must agree)', () => {
+    for (const spec of PROBLEMS) {
+      for (const seed of spec.params ? [1, 2] : [undefined]) {
+        const a = instantiate(spec, seed);
+        const b = instantiate(spec, seed);
+        expect(JSON.stringify(b.start(b.values)), spec.slug).toBe(JSON.stringify(a.start(a.values)));
+        if (a.reference) expect(JSON.stringify(b.reference(b.values)), spec.slug).toBe(JSON.stringify(a.reference(a.values)));
+      }
+    }
+  });
+
   it.each(PROBLEMS.map((p) => [p.slug, p] as const))('%s clears the quality bar', (_, p) => {
     expect(verifyProblem(p, SEEDS, checks)).toEqual([]);
   });

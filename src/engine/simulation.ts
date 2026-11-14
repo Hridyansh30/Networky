@@ -51,6 +51,13 @@ export const MAX_IN_FLIGHT = 400;
 export const MAX_COPIES_PER_FRAME = 64;
 export const MAX_LOG = 20_000;
 
+/**
+ * Work units: one per step plus one per frame delivered. A deterministic
+ * measure of how much a run cost, unlike wall-clock time, which depends on
+ * the machine. The grader sets a budget in these units (see grading/grade.ts).
+ */
+export type WorkBudget = number;
+
 export interface ArpEntry {
   mac: string;
   interfaceId: string;
@@ -106,6 +113,10 @@ export class Simulation implements SimApi {
    * and the input of the PDU details view. Capped like the log.
    */
   hops: HopRecord[] = [];
+  /** Work done so far: steps taken plus frames delivered. */
+  work = 0;
+  /** Stop stepping once `work` reaches this. Infinity (the default) means no limit. */
+  workBudget: WorkBudget = Infinity;
 
   private pending: PendingArp[] = [];
   private bootQueue: number[] = [];
@@ -166,6 +177,7 @@ export class Simulation implements SimApi {
     const arriving = this.inFlight;
     this.inFlight = [];
     this.tick++;
+    this.work += 1 + arriving.length;
     for (const tx of arriving) {
       this.recordHop(tx);
       this.receive(tx);
@@ -181,8 +193,13 @@ export class Simulation implements SimApi {
 
   /** Step until nothing is on the wire and boot has finished (or a step limit). */
   run(maxSteps = 2000): this {
-    for (let i = 0; i < maxSteps && !this.isIdle(); i++) this.step();
+    for (let i = 0; i < maxSteps && !this.isIdle() && !this.overBudget; i++) this.step();
     return this;
+  }
+
+  /** True once the work budget is spent; run() then does nothing. */
+  get overBudget(): boolean {
+    return this.work >= this.workBudget;
   }
 
   isIdle(): boolean {

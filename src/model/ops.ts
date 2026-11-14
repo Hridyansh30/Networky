@@ -6,8 +6,8 @@
 // misconfigure it.
 
 import { produce } from 'immer';
-import { nanoid } from 'nanoid';
 import { CABLES, CATALOG, cableFits, isHostKind } from './catalog';
+import { formatMac, randomIds, type IdSource } from './ids';
 import { isValidIPv4, isValidPrefix, networkOf, formatIPv4 } from './ip';
 import { isValidIPv6, normalizeIPv6 } from './ip6';
 import type {
@@ -36,14 +36,13 @@ export function createTopology(): Topology {
   return { version: 1, devices: {}, interfaces: {}, links: {} };
 }
 
+/** A random locally administered MAC (the canvas uses this; problems use a seeded IdSource). */
 export function randomMac(): string {
-  const bytes = new Uint8Array(6);
-  crypto.getRandomValues(bytes);
-  // Set the "locally administered" bit and clear the multicast bit,
-  // so a generated MAC can never collide with a real vendor's.
-  bytes[0] = (bytes[0] | 0x02) & 0xfe;
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(':');
+  return randomIds.mac();
 }
+
+/** Re-exported so callers that only format bytes need not know about id sources. */
+export { formatMac };
 
 function nextHostname(t: Topology, kind: DeviceKind): string {
   const prefix = CATALOG[kind].hostnamePrefix;
@@ -61,25 +60,27 @@ function need<T>(value: T | undefined, what: string): T {
 export function addDevice(
   t: Topology,
   kind: DeviceKind,
-  opts: { id?: string; hostname?: string } = {},
+  opts: { id?: string; hostname?: string; ids?: IdSource } = {},
 ): { topology: Topology; deviceId: string } {
+  const ids = opts.ids ?? randomIds;
   const template = CATALOG[kind];
   if (!template) throw new TopologyError(`Unknown device kind '${kind}'`);
-  const deviceId = opts.id ?? nanoid(10);
+  const deviceId = opts.id ?? ids.id('device');
   if (t.devices[deviceId]) throw new TopologyError(`Device id '${deviceId}' is already used`);
   const hostname = opts.hostname ?? nextHostname(t, kind);
 
   const topology = produce(t, (draft) => {
     const interfaceIds: string[] = [];
     for (const port of template.ports) {
-      const id = nanoid(10);
+      const id = ids.id('interface');
+      if (t.interfaces[id] || interfaceIds.includes(id)) throw new TopologyError(`Interface id '${id}' is already used`);
       interfaceIds.push(id);
       draft.interfaces[id] = {
         id,
         deviceId,
         name: port.name,
         portType: port.portType,
-        mac: randomMac(),
+        mac: ids.mac(),
         adminUp: true,
       };
     }
@@ -138,11 +139,12 @@ export function connect(
   ifA: string,
   ifB: string,
   cable: CableType,
-  opts: { id?: string } = {},
+  opts: { id?: string; ids?: IdSource } = {},
 ): { topology: Topology; linkId: string } {
   const problem = connectionProblem(t, ifA, ifB, cable);
   if (problem) throw new TopologyError(problem);
-  const linkId = opts.id ?? nanoid(10);
+  const linkId = opts.id ?? (opts.ids ?? randomIds).id('link');
+  if (t.links[linkId]) throw new TopologyError(`Link id '${linkId}' is already used`);
   // The link is stored on three records. Updating them in one produce()
   // keeps them consistent; checkIntegrity() in the tests guards this.
   const topology = produce(t, (draft) => {
@@ -305,7 +307,7 @@ export function setSwitchport(t: Topology, interfaceId: string, sp: SwitchportCo
  * (after the dot) is only a name; the VLAN comes from the encapsulation.
  * They are usually equal by convention, so `number` defaults to `vlan`.
  */
-export function addSubinterface(t: Topology, parentId: string, vlan: number, number: number = vlan): { topology: Topology; interfaceId: string } {
+export function addSubinterface(t: Topology, parentId: string, vlan: number, number: number = vlan, ids: IdSource = randomIds): { topology: Topology; interfaceId: string } {
   const parent = need(t.interfaces[parentId], `Interface '${parentId}'`);
   const device = t.devices[parent.deviceId];
   if (device.kind !== 'router') throw new TopologyError('Only routers have subinterfaces');
@@ -318,7 +320,8 @@ export function addSubinterface(t: Topology, parentId: string, vlan: number, num
   if (!Number.isInteger(number) || number < 1 || number > 4294967295) throw new TopologyError('Subinterface numbers are 1 to 4294967295');
   const name = `${parent.name}.${number}`;
   if (device.interfaceIds.some((id) => t.interfaces[id].name === name)) throw new TopologyError(`${name} already exists`);
-  const interfaceId = nanoid(10);
+  const interfaceId = ids.id('interface');
+  if (t.interfaces[interfaceId]) throw new TopologyError(`Interface id '${interfaceId}' is already used`);
   const topology = produce(t, (draft) => {
     draft.interfaces[interfaceId] = {
       id: interfaceId,

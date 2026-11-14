@@ -5,7 +5,10 @@ import { exampleById, EXAMPLES } from '../../model/examples';
 import { exerciseToTest } from '../../problems/fromExercise';
 import type { ProblemSpec } from '../../problems/spec';
 import { DEFAULT_CHECKS, registry } from '../checks';
-import { ENGINE_VERSION, grade, solved } from '../grade';
+import { DEFAULT_PLUGINS } from '../../engine/plugins';
+import { PROBLEMS } from '../../problems/catalog';
+import { instantiate } from '../../problems/params';
+import { ENGINE_VERSION, grade, LIMIT_MESSAGE, solved, WORK_BUDGET } from '../grade';
 import { addressPc1, lanNoGateway, lanRouterDown, lanSolved, lanStart } from './fixtures';
 
 describe('grade', () => {
@@ -63,10 +66,52 @@ describe('grade', () => {
         sim.transmit(nic, sim.makeFrame(nic.mac, 'ff:ff:ff:ff:ff:ff', { kind: 'raw' } as never));
       },
     };
-    const r = grade(lanSolved(), addressPc1, { plugins: [chatty] });
+    const r = grade(lanSolved(), addressPc1, { plugins: [chatty], workBudget: Infinity });
     expect(r.networkError).toMatch(/never went quiet/);
     expect(r.tests.find((x) => x.id === 'pc1-address')!.pass).toBe(true); // configuration checks still run
     expect(r.tests.filter((x) => x.id !== 'pc1-address').every((x) => !x.pass && x.detail === r.networkError)).toBe(true);
+  });
+
+  it('stops at the work budget with the same verdict every time', () => {
+    const chatty: EnginePlugin = {
+      name: 'chatty',
+      description: 'test only',
+      boot: (sim) => chatty.onIdle!(sim),
+      onIdle(sim) {
+        const pc = Object.values(sim.topology.devices).find((d) => d.hostname === 'PC0')!;
+        const nic = sim.interfacesOf(pc)[0];
+        sim.transmit(nic, sim.makeFrame(nic.mac, 'ff:ff:ff:ff:ff:ff', { kind: 'raw' } as never));
+      },
+    };
+    const a = grade(lanSolved(), addressPc1, { plugins: [chatty] });
+    const b = grade(lanSolved(), addressPc1, { plugins: [chatty] });
+    expect(a.limitExceeded).toBe(true);
+    expect(a.networkError).toBe(LIMIT_MESSAGE);
+    expect(a.tests.find((x) => x.id === 'pc1-address')!.pass).toBe(true); // config checks still run
+    expect(a.tests.filter((x) => x.id !== 'pc1-address').every((x) => !x.pass && x.detail === LIMIT_MESSAGE)).toBe(true);
+    expect(b).toEqual(a);
+  });
+
+  it('a budget hit during a check fails that check', () => {
+    // Booting the solved LAN takes 4 units; its pings need more than 10.
+    const r = grade(lanSolved(), addressPc1, { plugins: DEFAULT_PLUGINS, workBudget: 10 });
+    expect(r.networkError).toBeUndefined();
+    expect(r.limitExceeded).toBe(true);
+    expect(r.tests.some((x) => x.detail === LIMIT_MESSAGE)).toBe(true);
+    expect(r.score).toBeLessThan(r.max);
+  });
+
+  it('every problem network in the catalog fits well inside the budget', () => {
+    for (const spec of PROBLEMS) {
+      for (const seed of spec.params ? [1, 2, 3] : [undefined]) {
+        const p = instantiate(spec, seed);
+        const nets = [p.start(p.values), ...(p.reference ? [p.reference(p.values)] : []), ...(p.wrong ?? []).map((w) => w(p.values))];
+        for (const n of nets) {
+          const r = grade(n, p, { seed, workBudget: WORK_BUDGET / 10 });
+          expect(r.limitExceeded, `${spec.slug} needs more than a tenth of the budget`).toBeUndefined();
+        }
+      }
+    }
   });
 
   it('stays bounded on a switching loop without STP', () => {
