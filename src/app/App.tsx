@@ -1,12 +1,15 @@
 import { useEffect } from 'react';
 import { HomePage } from '../pages/HomePage';
+import { LeaderboardPage } from '../pages/LeaderboardPage';
 import { LearnPage } from '../pages/LearnPage';
 import { ProblemPage } from '../pages/ProblemPage';
 import { ProblemsPage } from '../pages/ProblemsPage';
 import { ProjectsPage } from '../pages/ProjectsPage';
 import { WorkspacePage } from '../pages/WorkspacePage';
 import { problemBySlug } from '../problems/catalog';
+import { EngineBanner } from '../ui/AccountMenu';
 import { ConfirmHost } from '../ui/Confirm';
+import { ImportBanner } from '../ui/ImportBanner';
 import { IconDefs } from '../ui/icons';
 import { Toast } from '../ui/Toast';
 import { LabLink } from './LabLink';
@@ -25,6 +28,8 @@ function title(route: Route): string {
       return 'Projects · Networky';
     case 'learn':
       return 'Learn · Networky';
+    case 'leaderboard':
+      return 'Leaderboard · Networky';
     case 'workspace':
       return 'Playground · Networky';
     case 'lab':
@@ -48,8 +53,11 @@ export function App() {
       {route.page === 'problem' && <ProblemPage key={route.slug} slug={route.slug} />}
       {route.page === 'projects' && <ProjectsPage />}
       {route.page === 'learn' && <LearnPage />}
+      {route.page === 'leaderboard' && <LeaderboardPage />}
       {route.page === 'workspace' && <WorkspacePage projectId={route.projectId} />}
       {route.page === 'lab' && <LabLink labId={route.labId} />}
+      <ImportBanner />
+      <EngineBanner />
       <Toast />
       <ConfirmHost />
     </>

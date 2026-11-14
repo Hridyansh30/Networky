@@ -6,9 +6,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { href, navigate } from '../app/router';
 import { dailyProblem, PROBLEMS, problemNumber, TOPICS, TRACKS } from '../problems/catalog';
 import type { Difficulty, ProblemSpec } from '../problems/spec';
-import { learnerStats, statusOf, trackProgress, type Status } from '../problems/stats';
+import { ACCEPTANCE_MIN_TRIED, learnerStats, statusOf, trackProgress, type Status } from '../problems/stats';
 import { DeviceIcon, Icon } from '../ui/icons';
 import { TopNav, useProgress } from '../ui/TopNav';
+import { useApi } from '../api/useApi';
+import type { ProblemStats } from '../api/types';
 import { EXAMPLES } from '../model/examples';
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
@@ -81,6 +83,8 @@ export function useNow(everyMs: number): Date {
 
 export function ProblemsPage() {
   const { progress } = useProgress();
+  const server = useApi<ProblemStats>('/problems/stats');
+  const shared = server.state === 'ok' ? server.data : null;
   const [query, setQuery] = useState('');
   const [topic, setTopic] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty | 'all'>('all');
@@ -192,6 +196,11 @@ export function ProblemsPage() {
                   <th>Topic</th>
                   <th>Difficulty</th>
                   <th>Status</th>
+                  {server.state !== 'off' && (
+                    <th className="num" title={`Share of learners who tried and solved it. Shown once ${ACCEPTANCE_MIN} have tried.`}>
+                      Acceptance
+                    </th>
+                  )}
                   <th>
                     <span className="sr-only">Open</span>
                   </th>
@@ -199,13 +208,16 @@ export function ProblemsPage() {
               </thead>
               <tbody>
                 {rows.map((p) => (
-                  <ProblemRow key={p.slug} p={p} status={statusOf(progress, p.slug)} />
+                  <ProblemRow key={p.slug} p={p} status={statusOf(progress, p.slug)} acceptance={server.state === 'off' ? undefined : (shared?.problems[p.slug] ?? null)} />
                 ))}
               </tbody>
             </table>
             {!rows.length && <p className="muted pad">No problems match those filters.</p>}
           </div>
-          <p className="muted small table-foot">{PROBLEMS.length} problems so far. More are on the way.</p>
+          <p className="muted small table-foot">
+            {PROBLEMS.length} problems so far. More are on the way.
+            {shared && shared.solves > 0 && <> Learners have solved them {shared.solves.toLocaleString()} times.</>}
+          </p>
         </div>
 
         <aside className="problems-rail" aria-label="Your progress">
@@ -319,7 +331,22 @@ function EntryCard({ to, icon, title, text }: { to: string; icon: React.ReactNod
   );
 }
 
-function ProblemRow({ p, status }: { p: ProblemSpec; status: Status }) {
+const ACCEPTANCE_MIN = ACCEPTANCE_MIN_TRIED;
+
+/** undefined: no server, no column. null: the server has no row yet. */
+type Acceptance = ProblemStats['problems'][string] | null | undefined;
+
+function AcceptanceCell({ a }: { a: Acceptance }) {
+  if (a === undefined) return null;
+  const tried = a?.tried ?? 0;
+  return (
+    <td className="num muted" title={a?.acceptance == null ? `${tried} of ${ACCEPTANCE_MIN} learners needed before a rate means anything` : `${a.solvers} of ${a.tried} learners solved it`}>
+      {a?.acceptance == null ? '·' : `${Math.round(a.acceptance * 100)}%`}
+    </td>
+  );
+}
+
+function ProblemRow({ p, status, acceptance }: { p: ProblemSpec; status: Status; acceptance: Acceptance }) {
   const to = href({ page: 'problem', slug: p.slug });
   return (
     <tr>
@@ -346,6 +373,7 @@ function ProblemRow({ p, status }: { p: ProblemSpec; status: Status }) {
       <td>
         <StatusCell status={status} />
       </td>
+      <AcceptanceCell a={acceptance} />
       <td className="go">
         <a className="icon-btn sm play" href={to} aria-label={`Open ${p.title}`}>
           <Icon.Play size={14} />

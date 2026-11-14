@@ -30,7 +30,7 @@ describe('Problems page', () => {
     expect(rows()).toHaveLength(PROBLEMS.length);
     expect(screen.getByText(`${PROBLEMS.length} problems so far. More are on the way.`)).toBeTruthy();
     // Cut until they are real (docs/deferred.md).
-    for (const gone of ['Acceptance', 'Contests', 'Interview Prep', 'Upgrade', 'Discuss', 'Compete']) expect(screen.queryByText(new RegExp(gone))).toBeNull();
+    for (const gone of ['Acceptance', 'Leaderboard', 'Contests', 'Interview Prep', 'Upgrade', 'Discuss', 'Compete']) expect(screen.queryByText(new RegExp(gone))).toBeNull();
   });
 
   it('filters by topic chip, difficulty and search', async () => {
