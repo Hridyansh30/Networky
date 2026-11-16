@@ -10,8 +10,6 @@ invented numbers.
 
 | Feature | From | Waits for | Notes |
 | --- | --- | --- | --- |
-| Per-user stats page ("View Stats") | Problems mockup | Phase 7 profiles | Phase 6 shipped the global solve total (under the problem table) and XP, solved and rank in the account menu. |
-| Public profiles (`/u/:handle`) | Both Problems mockups | Phase 7 profiles | The avatar menu shipped in phase 6. |
 | Notifications bell | Both Problems mockups | Phase 6 accounts | Nothing to notify about without accounts. |
 | Compete menu, Contests card, timed contests | Both Problems mockups | Phase 8 | Needs the server judge plus anti-cheat. |
 | Discuss | Both Problems mockups | Phase 7+ | Needs accounts and moderation. |
@@ -28,3 +26,12 @@ invented numbers.
 | Private problems in the web app | Phase 6 design | The first private problem | The server side is wired (`NETWORKY_PRIVATE_CONTENT`, docs/judge.md). The web app still needs the public half of a private problem (statement, start network, visible tests) in its catalog; that format is decided with the first such problem. |
 | Other sign-in providers (Google, email) | Phase 6 design | Demand | GitHub only: the audience has accounts, and one provider means one OAuth flow to secure. The `identities` table already allows more. |
 | Banning from the UI | Phase 6 | Abuse | `users.banned_at` hides a user from boards; set it with a D1 query. |
+| Percentile on profiles ("better than 64%") | Phase 7 plan | 20+ ranked learners, and a cheap count | Counting every ranked learner per profile view reads one row per learner. Rank alone is shown. |
+| Shared cache for public profiles (Cloudflare Cache API) | Phase 7 plan | The production launch | `Cache-Control` only helps the visitor's own browser. Check whether the Cache API works on the `pages.dev` address before relying on it. |
+| Per-IP rate limit on public profiles | Phase 7 plan | Abuse | Counting in D1 would spend a written row per view. Use Cloudflare's own rate limiting if the free plan offers it for this setup. |
+| Link previews for shared profiles | Phase 7 plan | Real sharing | Needs the worker to render HTML for every crawler, which spends the 100,000 requests a day. |
+| Changing your handle | Phase 7 plan | Demand | Profile links use the handle; a rename needs redirects for old links. |
+| Spaced repetition for drills | Phase 7 plan | Data on how drills are used | Bring back the kinds you got wrong days later. |
+| Syncing guest drill records to an account | Phase 7 | Demand | Signed-in drill sets are already on the server; guests' stay on their device. |
+| Practice XP for engine-backed drills | Phase 7 | CPU measurements | 10 simulations in one request do not fit 10 ms of CPU. |
+| Compressing stored networks | Phase 7 storage review | Real D1 size numbers | gzip would roughly quarter the 500 MB pressure but costs CPU on every submit. |

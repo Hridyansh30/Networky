@@ -124,6 +124,8 @@ signed-in learner's browser submit, unlock hints or open solutions.
 | A huge or hostile network | 160 KB body cap, checked before parsing; device cap (start + 8, at most 32); strict zod schemas; the work budget. | On the free plan a network that runs the full 3,000 units can exceed 10 ms of CPU; Cloudflare then ends the request with an error and nothing is written. Watch the worker's CPU time in the dashboard after launch. |
 | Flooding submits or attempts | 10 submits a minute, 10 new attempts a day per problem. | Counted with a read then a write, so a burst of parallel requests can slip a few past. Acceptable for a learning site. |
 | A leaked database | Only session token hashes are stored. No passwords exist. | GitHub ids, handles and avatars are in it. |
+| Scripting drills for XP | Seeds come from the server, which replays every answer; practice XP is capped at 30 a day and counts only on the weekly board (`docs/profiles-and-drills.md`). | A script earns what a diligent learner earns. Nothing more. |
+| Reading someone's private stats | The public profile endpoint never reads the session and its answer has no private field (tested); the private half is a separate, `no-store` URL. | |
 | Deleting someone's account | Needs their session, the `Origin` check, and their handle typed in the body. | |
 | Your data, your call | Account menu: "Download my data" (`/me/export`) and "Delete account" (`/me/delete`), which removes every row and recounts acceptance (`server/routes/account.ts`). A test checks that every table is left with no row of the deleted user. | D1 Time Travel can restore the database to any point in the last 7 days (free plan), so a deleted account is only gone from backups after that. A new table that holds user rows must be added to both the export and the delete. |
 | Dev sign-in reaching production | `devLogin` is set only by `server/devHandler.ts`; `scripts/check-worker.mjs` checks the built worker answers 404. | |
@@ -175,6 +177,12 @@ All under `/api/v1`, JSON, cookie session. Errors are
 | `POST /import/:slug` then `POST /import/done` | user | one-time import of browser progress (below) |
 | `GET /me/export` | user | everything stored about you, as a JSON download (no session token hashes) |
 | `POST /me/delete` | user | `{ confirm: "<your handle>" }` → deletes the account and every row about it, at once |
+| `GET /users/:handle` | anyone | public profile (phase 7). Never reads the session; cached 60 s. Hidden, banned and unknown handles are the same 404. |
+| `GET /me/profile` | user | your profile with its private half. `no-store`. |
+| `PUT /me/visibility` | user | `{ visibility: "public" \| "hidden" }` |
+| `POST /drills/:kind/sets` | user | `{ level }` → a drill set; the server draws the seed. 409 for engine-backed kinds. |
+| `POST /drill-sets/:id/finish` | user | `{ answers }` → replayed and graded; practice XP, capped at 30 a day. Retrying returns the first result. |
+| `GET /me/practice` | user | practice XP today and the cap |
 
 ## Importing phase 5 progress
 

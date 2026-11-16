@@ -208,14 +208,24 @@ Sign in with GitHub and your progress lives in an account, on any device, and co
 
 Free plans only. `npm run dev` runs the app and the API together with a local SQLite file and a "Dev sign in" box. Design, threat model and API: `docs/judge.md`. One-time production setup (D1, GitHub OAuth app, secrets): `docs/server-setup.md`.
 
+## Phase 7: drills and profiles
+
+- **Drills** (`#/drills`): seven kinds of short, generated questions (subnet ranges, masks and prefixes, same subnet or not, longest prefix match, MAC learning, IPv6 notation, and "will it reach?" over a generated switched network, answered by the simulator). Sets of 10; three right in a row moves you up a level, two wrong moves you down. Every set is reproducible from its link.
+- **Practice XP**: signed in, each right answer earns its level in XP, at most 30 a day (UTC). It counts on the weekly board, not on the all-time board or your level. The server draws each set's seed and replays the answers itself.
+- **Profiles** (`#/u/<handle>`, linked from the leaderboard and the account menu): XP, rank, solved problems by difficulty and topic, and an activity calendar by day. The owner also sees a private half (hints, failed submits, acceptance, XP per week, drill practice) and can hide the profile.
+- **Smaller storage**: the judge keeps one passing network per problem and drops failing networks once an attempt passes (the free database holds 500 MB).
+
+Design, privacy rules, the measured free-plan budget and how to add a drill kind: `docs/profiles-and-drills.md`. Run `migrations/0002_phase7.sql` on D1 before deploying (`docs/server-setup.md`).
+
 ## Tests
 
-`npm test` runs about 680 tests:
+`npm test` runs about 750 tests:
 - model ops, validation and serialization, including the security cases;
 - every protocol plugin and a modularity check;
 - every lab exercise, booted and run;
 - the CLI;
 - UI tests (jsdom) that type into a device's terminal and fill in the device window the way a user would.
 - grading: every check plugin, determinism, every catalog problem's quality bar, hints, XP, saved progress (including tampered rows), the grader worker's timeout;
-- the server: sign-in and sessions, CSRF and origin checks, the judge (re-grading, idempotent submits, rate limits, redaction, seeds), the one-time import, leaderboards, cache rebuild idempotence, and the real client stores driven against the real API (`server/__tests__/`);
+- drills: every kind on every level against an independent oracle, the engine-backed kind against its own explanations, strict answer parsing, the level rule;
+- the server: sign-in and sessions, CSRF and origin checks, the judge (re-grading, idempotent submits, rate limits, redaction, seeds), the one-time import, leaderboards, cache rebuild idempotence, drill sets and the practice XP cap, profiles (nothing private in the public answer, hidden profiles), what networks are kept, and the real client stores driven against the real API (`server/__tests__/`);
 - import/export: every lab round-trips through Cisco export and import with no errors, every lab exports to well-formed Terraform, and the HCL injection cases. In CI, the `terraform` job also runs the real `terraform fmt -check` and `terraform validate` on every lab's export (see `docs/ci-cd.md`).

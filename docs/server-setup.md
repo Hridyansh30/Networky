@@ -33,6 +33,17 @@ on. Run each once, in order, with the same `d1 execute ... --file` command,
 **before** deploying the code that needs it. Never edit a file that has
 already run.
 
+Phase 7 adds `migrations/0002_phase7.sql` (drill sets, practice XP, profile
+visibility). Run it on both databases before deploying phase 7:
+
+```sh
+npx wrangler d1 execute networky --remote --file migrations/0002_phase7.sql
+npx wrangler d1 execute networky-preview --remote --file migrations/0002_phase7.sql
+```
+
+`npm run dev` applies new migration files to `.data/dev.sqlite` by itself and
+keeps its data (it records what ran in a `_migrations` table).
+
 ## 2. Bind it to the Pages project
 
 Cloudflare dashboard → Workers & Pages → the workspace project → Settings →
