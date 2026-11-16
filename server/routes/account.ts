@@ -23,7 +23,8 @@ const USER_TABLES = [
   ['hint_unlocks', 'SELECT slug, requirement, level, updated_at FROM hint_unlocks WHERE user_id = ?'],
   ['predict_answers', 'SELECT p.attempt_id, p.question_id, p.choice, p.correct, p.answered_at FROM predict_answers p JOIN attempts a ON a.id = p.attempt_id WHERE a.user_id = ?'],
   ['problems', 'SELECT slug, solved, solved_at, best, first_try, solution_opened, solution_first, submits, failed_submits, xp FROM user_problem WHERE user_id = ?'],
-  ['xp_events', 'SELECT slug, delta, created_at FROM xp_events WHERE user_id = ? ORDER BY id'],
+  ['xp_events', 'SELECT slug, delta, source, created_at FROM xp_events WHERE user_id = ? ORDER BY id'],
+  ['drill_sets', 'SELECT id, kind, start_level, seed, created_at, finished_at, correct, earned, xp, answers FROM drill_sets WHERE user_id = ? ORDER BY created_at'],
 ] as const;
 
 export const accountRoutes = new Hono<AppEnv>()
@@ -35,7 +36,7 @@ export const accountRoutes = new Hono<AppEnv>()
   .get('/me/export', async (c) => {
     const user = requireUser(c);
     const db = c.env.DB;
-    const profile = await db.prepare('SELECT handle, display_name, avatar_url, created_at, imported_at FROM users WHERE id = ?').bind(user.id).first();
+    const profile = await db.prepare('SELECT handle, display_name, avatar_url, profile_visibility, created_at, imported_at FROM users WHERE id = ?').bind(user.id).first();
     const out: Record<string, unknown> = {
       exportedAt: new Date(c.var.deps.now()).toISOString(),
       format: 'networky-export/1',
@@ -71,6 +72,7 @@ export const accountRoutes = new Hono<AppEnv>()
       db.prepare('DELETE FROM attempts WHERE user_id = ?').bind(id),
       db.prepare('DELETE FROM hint_unlocks WHERE user_id = ?').bind(id),
       db.prepare('DELETE FROM xp_events WHERE user_id = ?').bind(id),
+      db.prepare('DELETE FROM drill_sets WHERE user_id = ?').bind(id),
       db.prepare('DELETE FROM user_problem WHERE user_id = ?').bind(id),
       db.prepare('DELETE FROM user_stats WHERE user_id = ?').bind(id),
       db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),

@@ -22,7 +22,8 @@ let app: ReturnType<typeof createApp> | undefined;
 async function setup(origin: string) {
   mkdirSync('.data', { recursive: true });
   const db = new SqliteDb('.data/dev.sqlite');
-  if (!(await db.prepare("SELECT name FROM sqlite_master WHERE name = 'users'").first())) migrate(db);
+  // Applies only the migrations this file has not seen, so an existing .data/dev.sqlite keeps its data.
+  for (const f of migrate(db)) console.log(`[networky] applied ${f} to .data/dev.sqlite`);
   env = { DB: db, GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET, APP_ORIGIN: origin };
   app = createApp({ ...realDeps(), devLogin: true });
 }

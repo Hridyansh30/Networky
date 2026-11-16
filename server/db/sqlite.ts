@@ -64,9 +64,34 @@ export class SqliteDb implements Db {
   }
 }
 
-/** Applies every migrations/*.sql file in name order, like `wrangler d1 migrations apply`. */
-export function migrate(db: SqliteDb, dir = join(import.meta.dirname, '..', '..', 'migrations')): void {
-  for (const f of readdirSync(dir).filter((n) => n.endsWith('.sql')).sort()) db.raw.exec(readFileSync(join(dir, f), 'utf8'));
+/**
+ * Applies the migrations/*.sql files that have not run yet, in name order,
+ * and records each in `_migrations`. A local dev database made before phase 7
+ * has 0001 but no record of it; that case is recognised by its users table.
+ * (Production D1 runs each file once by hand: docs/server-setup.md.)
+ */
+export function migrate(db: SqliteDb, dir = join(import.meta.dirname, '..', '..', 'migrations')): string[] {
+  db.raw.exec('CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)');
+  const applied = new Set((db.raw.prepare('SELECT name FROM _migrations').all() as { name: string }[]).map((r) => r.name));
+  if (!applied.size && db.raw.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'users'").get()) {
+    db.raw.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run('0001_init.sql', Date.now());
+    applied.add('0001_init.sql');
+  }
+  const ran: string[] = [];
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.sql')).sort()) {
+    if (applied.has(f)) continue;
+    db.raw.exec('BEGIN');
+    try {
+      db.raw.exec(readFileSync(join(dir, f), 'utf8'));
+      db.raw.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(f, Date.now());
+      db.raw.exec('COMMIT');
+    } catch (e) {
+      db.raw.exec('ROLLBACK');
+      throw new Error(`migration ${f} failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    ran.push(f);
+  }
+  return ran;
 }
 
 /** A fresh in-memory database with the schema applied. */

@@ -8,6 +8,8 @@ import { authRoutes, loadSession, sameOrigin } from './auth';
 import type { AppEnv, Deps } from './env';
 import { ApiError } from './http';
 import { accountRoutes } from './routes/account';
+import { drillRoutes } from './routes/drills';
+import { profileRoutes } from './routes/profiles';
 import { importRoutes } from './routes/import';
 import { problemRoutes } from './routes/problems';
 import { siteRoutes } from './routes/site';
@@ -32,6 +34,8 @@ export function createApp(deps: Deps) {
   app.route('/', problemRoutes);
   app.route('/', importRoutes);
   app.route('/', accountRoutes);
+  app.route('/', drillRoutes);
+  app.route('/', profileRoutes);
 
   app.notFound((c) => c.json({ error: 'not_found', message: 'No such API route.' }, 404));
   app.onError((err, c) => {

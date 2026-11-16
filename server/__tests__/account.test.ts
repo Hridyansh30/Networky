@@ -22,6 +22,9 @@ async function busyUser(h: Harness, handle: string) {
     json: { submissionId: crypto.randomUUID(), network: net('first-ping') },
   });
   expect(r.body.report.score).toBe(r.body.report.max);
+  // ...and finished a drill set, so drill_sets and practice XP have rows too.
+  const set = (await b.json('/api/v1/drills/subnet-range/sets', { json: { level: 1 } })).body.set;
+  await b.json(`/api/v1/drill-sets/${set.id}/finish`, { json: { answers: Array(10).fill({}) } });
   return b;
 }
 

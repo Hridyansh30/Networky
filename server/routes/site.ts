@@ -80,12 +80,12 @@ export const siteRoutes = new Hono<AppEnv>()
     const page = Math.max(0, Math.min(100, Number(c.req.query('page') ?? 0) || 0));
     const size = 50;
     const db = c.env.DB;
-    let rows: { handle: string; display_name: string; avatar_url: string | null; xp: number; solved: number | null }[];
+    let rows: { handle: string; display_name: string; avatar_url: string | null; profile_visibility: string; xp: number; solved: number | null }[];
     if (period === 'all') {
       // An index scan on (xp DESC, xp_reached_at ASC): reads `size` rows, not every user.
       ({ results: rows } = await db
         .prepare(
-          `SELECT u.handle, u.display_name, u.avatar_url, s.xp, s.solved
+          `SELECT u.handle, u.display_name, u.avatar_url, u.profile_visibility, s.xp, s.solved
              FROM user_stats s JOIN users u ON u.id = s.user_id
             WHERE s.xp > 0 AND u.banned_at IS NULL
             ORDER BY s.xp DESC, s.xp_reached_at ASC LIMIT ? OFFSET ?`,
@@ -96,7 +96,7 @@ export const siteRoutes = new Hono<AppEnv>()
       const since = weekStart(c.var.deps.now());
       ({ results: rows } = await db
         .prepare(
-          `SELECT u.handle, u.display_name, u.avatar_url, SUM(e.delta) AS xp, NULL AS solved
+          `SELECT u.handle, u.display_name, u.avatar_url, u.profile_visibility, SUM(e.delta) AS xp, NULL AS solved
              FROM xp_events e JOIN users u ON u.id = e.user_id
             WHERE e.created_at >= ? AND u.banned_at IS NULL
             GROUP BY e.user_id ORDER BY xp DESC, MAX(e.created_at) ASC LIMIT ? OFFSET ?`,
@@ -112,6 +112,11 @@ export const siteRoutes = new Hono<AppEnv>()
     return c.json({
       period,
       page,
-      rows: rows.map((r, i) => ({ rank: page * size + i + 1, handle: r.handle, displayName: r.display_name, avatarUrl: r.avatar_url, xp: r.xp, solved: r.solved })),
+      // A hidden profile keeps its place on the board, without a name, picture or link.
+      rows: rows.map((r, i) =>
+        r.profile_visibility === 'hidden'
+          ? { rank: page * size + i + 1, handle: null, displayName: 'Hidden learner', avatarUrl: null, xp: r.xp, solved: r.solved }
+          : { rank: page * size + i + 1, handle: r.handle, displayName: r.display_name, avatarUrl: r.avatar_url, xp: r.xp, solved: r.solved },
+      ),
     });
   });
