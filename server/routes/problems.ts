@@ -27,7 +27,7 @@ export const LIMITS = {
   maxDevices: 32,
   submitsPerMinute: 10,
   attemptsPerDay: 10,
-  /** Failed networks kept per attempt (passing ones are always kept). */
+  /** Failed networks kept per attempt until it passes; then none. One passing network is kept per problem. */
   failedNetworksKept: 1,
 } as const;
 
@@ -120,7 +120,8 @@ export const problemRoutes = new Hono<AppEnv>()
     const id = newId(c);
     const seed = spec.params ? drawSeed(c) : null;
     await c.env.DB.batch([
-      c.env.DB.prepare('UPDATE attempts SET active = 0 WHERE user_id = ? AND slug = ?').bind(user.id, spec.slug),
+      // A replaced attempt's draft is never shown again: drop it rather than store it forever.
+      c.env.DB.prepare('UPDATE attempts SET active = 0, network = NULL WHERE user_id = ? AND slug = ?').bind(user.id, spec.slug),
       c.env.DB.prepare('INSERT INTO attempts (id, user_id, slug, spec_version, seed, created_at, updated_at, active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)').bind(id, user.id, spec.slug, spec.version, seed, now, now),
     ]);
     const attempt = (await c.env.DB.prepare('SELECT * FROM attempts WHERE id = ?').bind(id).first<AttemptRow>())!;
@@ -188,8 +189,12 @@ export const problemRoutes = new Hono<AppEnv>()
            ON CONFLICT (id) DO NOTHING`,
         )
         .bind(id, user.id, attempt.id, attempt.slug, attempt.spec_version, ENGINE_VERSION, attempt.seed, hash, body.network, report.score, hinted.score, report.max, passed ? 1 : 0, JSON.stringify(visible), now),
-      // Keep every passing network, and only the latest failing one per attempt.
-      db.prepare('UPDATE submissions SET network = NULL WHERE attempt_id = ? AND passed = 0 AND id <> ? AND network IS NOT NULL').bind(attempt.id, id),
+      // Storage: D1's free plan allows 500 MB per database and a network is 4 to 10 KB
+      // (docs/profiles-and-drills.md). Keep the latest failing network of an attempt
+      // until it passes, and only the newest passing network per learner and problem.
+      // network_hash stays on every row, so copied solutions can still be found.
+      db.prepare('UPDATE submissions SET network = NULL WHERE attempt_id = ?1 AND passed = 0 AND network IS NOT NULL AND (?3 = 1 OR id <> ?2)').bind(attempt.id, id, passed ? 1 : 0),
+      db.prepare('UPDATE submissions SET network = NULL WHERE user_id = ?1 AND slug = ?2 AND passed = 1 AND network IS NOT NULL AND ?3 = 1 AND id <> ?4').bind(user.id, attempt.slug, passed ? 1 : 0, id),
       db.prepare('UPDATE attempts SET network = ?, updated_at = ? WHERE id = ?').bind(body.network, now, attempt.id),
       ...rebuild(db, user.id, variant, now),
     ]);
