@@ -27,5 +27,4 @@ invented numbers.
 | AI tutor | Platform plan | Phase 8 | |
 | Private problems in the web app | Phase 6 design | The first private problem | The server side is wired (`NETWORKY_PRIVATE_CONTENT`, docs/judge.md). The web app still needs the public half of a private problem (statement, start network, visible tests) in its catalog; that format is decided with the first such problem. |
 | Other sign-in providers (Google, email) | Phase 6 design | Demand | GitHub only: the audience has accounts, and one provider means one OAuth flow to secure. The `identities` table already allows more. |
-| Account deletion and data export | Phase 6 security pass | Before a public launch | Needed for GDPR-style requests. Today an admin deletes the rows by hand (docs/judge.md). |
 | Banning from the UI | Phase 6 | Abuse | `users.banned_at` hides a user from boards; set it with a D1 query. |
