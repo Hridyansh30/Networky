@@ -24,10 +24,11 @@ const ENTRY_POINTS = [
   'problems/predict.ts',
   'problems/verify.ts',
   'model/serialize.ts',
+  'drills/index.ts',
 ];
 
 /** Folders (and single files) the core may live in. */
-const CORE = ['model/', 'engine/', 'grading/', 'problems/', 'apps/client.ts', 'apps/html.ts', 'zodConfig.ts'];
+const CORE = ['model/', 'engine/', 'grading/', 'problems/', 'drills/', 'apps/client.ts', 'apps/html.ts', 'zodConfig.ts'];
 
 /** Browser glue inside core folders: allowed to exist, never reachable from an entry point. */
 const BROWSER_ONLY = ['grading/gradeClient.ts', 'grading/worker.ts'];
