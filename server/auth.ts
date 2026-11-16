@@ -21,7 +21,7 @@ export const SESSION_DAYS = 30;
 const DAY = 86_400_000;
 const OAUTH_COOKIE_MAX_AGE = 600; // seconds: the sign-in must finish within 10 minutes
 
-const sessionCookie = { prefix: 'host', httpOnly: true, secure: true, sameSite: 'Lax', path: '/' } as const;
+export const sessionCookie = { prefix: 'host', httpOnly: true, secure: true, sameSite: 'Lax', path: '/' } as const;
 
 // ------------------------------------------------------------------ sessions
 

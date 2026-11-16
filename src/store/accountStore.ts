@@ -33,6 +33,8 @@ interface AccountState {
   /** Local development only: sign in as any handle without GitHub. */
   devSignIn(handle: string): Promise<void>;
   signOut(): Promise<void>;
+  /** Deletes the account on the server for good; `confirm` is the handle, typed. */
+  deleteAccount(confirm: string): Promise<void>;
 }
 
 let loading: Promise<void> | null = null;
@@ -81,6 +83,13 @@ export const useAccountStore = create<AccountState>()((set, get) => ({
   async devSignIn(handle) {
     await api('POST', '/auth/dev', { handle });
     await get().refresh();
+  },
+
+  async deleteAccount(confirm) {
+    await api('POST', '/me/delete', { confirm });
+    set({ me: null, status: 'guest' });
+    await useProblemStore.getState().useServer(null);
+    useTopologyStore.getState().notify('Your account was deleted.', 'info');
   },
 
   async signOut() {

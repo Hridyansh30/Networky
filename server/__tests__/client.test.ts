@@ -173,3 +173,16 @@ describe('client when the session ends', () => {
     expect(ps().error).toBeNull();
   });
 });
+
+describe('client: deleting the account', () => {
+  it('goes back to guest mode and this browser\'s progress', async () => {
+    await local.put({ ...emptyProgress('first-ping', 1), solved: true, best: 1 });
+    await acc().devSignIn('ivy');
+    await expect(acc().deleteAccount('wrong')).rejects.toThrow(/Type your handle/);
+    await acc().deleteAccount('ivy');
+    expect(acc().status).toBe('guest');
+    expect(ps().remote).toBe(false);
+    expect(ps().progress['first-ping'].solved).toBe(true);
+    expect((await h.db.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>())!.n).toBe(0);
+  });
+});

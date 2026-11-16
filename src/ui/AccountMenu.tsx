@@ -12,6 +12,7 @@ export function AccountMenu() {
   const status = useAccountStore((s) => s.status);
   const me = useAccountStore((s) => s.me);
   const meta = useAccountStore((s) => s.meta);
+  const [deleting, setDeleting] = useState(false);
 
   if (status === 'loading' || status === 'unavailable') return null;
 
@@ -28,32 +29,113 @@ export function AccountMenu() {
 
   const user = me!.user!;
   return (
-    <details className="account" onToggle={(e) => e.currentTarget.open && void useAccountStore.getState().refresh().catch(() => {})}>
-      <summary aria-label={`Account: ${user.handle}`} title={user.handle}>
-        {user.avatarUrl ? <img src={user.avatarUrl} alt="" width={30} height={30} referrerPolicy="no-referrer" /> : <span className="account-initial">{user.handle.slice(0, 1).toUpperCase()}</span>}
-      </summary>
-      <div className="account-menu" role="menu">
-        <div className="account-who">
-          <b>{user.displayName}</b>
-          <span className="muted">@{user.handle}</span>
+    <>
+      <details
+        className="account"
+        onToggle={(e) =>
+          e.currentTarget.open &&
+          void useAccountStore
+            .getState()
+            .refresh()
+            .catch(() => {})
+        }
+      >
+        <summary aria-label={`Account: ${user.handle}`} title={user.handle}>
+          {user.avatarUrl ? <img src={user.avatarUrl} alt="" width={30} height={30} referrerPolicy="no-referrer" /> : <span className="account-initial">{user.handle.slice(0, 1).toUpperCase()}</span>}
+        </summary>
+        <div className="account-menu" role="menu">
+          <div className="account-who">
+            <b>{user.displayName}</b>
+            <span className="muted">@{user.handle}</span>
+          </div>
+          <div className="account-stats">
+            <span>
+              <b>{me!.stats?.xp ?? 0}</b> XP
+            </span>
+            <span>
+              <b>{me!.stats?.solved ?? 0}</b> solved
+            </span>
+            <span>
+              {me!.rank ? (
+                <>
+                  Rank <b>#{me!.rank}</b>
+                </>
+              ) : (
+                'Not ranked yet'
+              )}
+            </span>
+          </div>
+          <a role="menuitem" href={href({ page: 'leaderboard' })}>
+            <Icon.Bars size={16} /> Leaderboard
+          </a>
+          <button role="menuitem" onClick={() => void useAccountStore.getState().signOut()}>
+            <Icon.ArrowRight size={16} /> Sign out
+          </button>
+          <div className="account-sep" />
+          <a role="menuitem" href="/api/v1/me/export" download>
+            <Icon.Download size={16} /> Download my data
+          </a>
+          <button
+            role="menuitem"
+            className="danger-text"
+            onClick={(e) => {
+              e.currentTarget.closest('details')?.removeAttribute('open');
+              setDeleting(true);
+            }}
+          >
+            <Icon.Trash size={16} /> Delete account
+          </button>
         </div>
-        <div className="account-stats">
+      </details>
+      {deleting && <DeleteAccount handle={user.handle} onClose={() => setDeleting(false)} />}
+    </>
+  );
+}
+
+/**
+ * Deleting is permanent, so the learner types their handle, like GitHub
+ * asks for a repository's name. The server checks the same thing.
+ */
+function DeleteAccount({ handle, onClose }: { handle: string; onClose: () => void }) {
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ok = typed.trim().toLowerCase() === handle.toLowerCase();
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await useAccountStore.getState().deleteAccount(typed.trim());
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()} onKeyDown={(e) => e.key === 'Escape' && !busy && onClose()}>
+      <div className="modal confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title">
+        <h2 id="delete-title">Delete your account?</h2>
+        <p className="muted">
+          Your solves, submissions, hints, XP and leaderboard place are deleted at once and cannot be brought back. Progress saved in this browser stays. Download your data first if you want a copy.
+        </p>
+        <label className="field">
           <span>
-            <b>{me!.stats?.xp ?? 0}</b> XP
+            Type <b>{handle}</b> to confirm
           </span>
-          <span>
-            <b>{me!.stats?.solved ?? 0}</b> solved
-          </span>
-          <span>{me!.rank ? <>Rank <b>#{me!.rank}</b></> : 'Not ranked yet'}</span>
+          <input autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Your handle" />
+        </label>
+        {error && <p className="callout error">{error}</p>}
+        <div className="confirm-actions">
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button className="btn btn-danger" onClick={() => void remove()} disabled={!ok || busy}>
+            {busy ? 'Deleting…' : 'Delete account'}
+          </button>
         </div>
-        <a role="menuitem" href={href({ page: 'leaderboard' })}>
-          <Icon.Bars size={16} /> Leaderboard
-        </a>
-        <button role="menuitem" onClick={() => void useAccountStore.getState().signOut()}>
-          <Icon.ArrowRight size={16} /> Sign out
-        </button>
       </div>
-    </details>
+    </div>
   );
 }
 

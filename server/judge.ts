@@ -109,18 +109,22 @@ export function rebuild(db: Db, userId: string, spec: ProblemSpec, now: number):
            xp_reached_at = CASE WHEN excluded.xp <> user_stats.xp THEN excluded.xp_reached_at ELSE user_stats.xp_reached_at END`,
       )
       .bind(userId, now),
-    db
-      .prepare(
-        `INSERT INTO problem_stats (slug, submissions, accepted, tried, solvers)
-         SELECT ?1, COUNT(*), COALESCE(SUM(passed), 0), COUNT(DISTINCT user_id),
-                COUNT(DISTINCT CASE WHEN passed = 1 THEN user_id END)
-           FROM submissions WHERE slug = ?1
-         ON CONFLICT (slug) DO UPDATE SET submissions = excluded.submissions, accepted = excluded.accepted,
-           tried = excluded.tried, solvers = excluded.solvers`,
-      )
-      .bind(slug),
+    rebuildProblemStats(db, slug),
   ];
 }
+
+/** The shared numbers of one problem (acceptance), recounted from all submissions. */
+export const rebuildProblemStats = (db: Db, slug: string): Statement =>
+  db
+    .prepare(
+      `INSERT INTO problem_stats (slug, submissions, accepted, tried, solvers)
+       SELECT ?1, COUNT(*), COALESCE(SUM(passed), 0), COUNT(DISTINCT user_id),
+              COUNT(DISTINCT CASE WHEN passed = 1 THEN user_id END)
+         FROM submissions WHERE slug = ?1
+       ON CONFLICT (slug) DO UPDATE SET submissions = excluded.submissions, accepted = excluded.accepted,
+         tried = excluded.tried, solvers = excluded.solvers`,
+    )
+    .bind(slug);
 
 /**
  * What the client may see of a report. Shown tests come back whole. A hidden

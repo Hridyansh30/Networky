@@ -767,3 +767,5 @@ table.data tr.clickable:hover td { background: var(--surface-2); }
 .history li { display: grid; grid-template-columns: 80px 60px 1fr; gap: 8px; }
 .history .ok { color: var(--success); font-weight: var(--fw-medium); }
 .history .bad { color: var(--error); }
+.account-sep { height: 1px; background: var(--border); margin: 4px 0; }
+.confirm .field > span { display: block; margin: var(--space-3) 0 6px; }
