@@ -16,6 +16,15 @@ describe('router', () => {
     ['#/problems/Bad_Slug', { page: 'problems' }],
     ['#/problems/../x', { page: 'problems' }],
     ['#/nonsense', { page: 'home' }],
+    ['#/drills', { page: 'drills' }],
+    ['#/u/ada-l', { page: 'profile', handle: 'ada-l' }],
+    ['#/u/<script>', { page: 'home' }],
+    ['#/u/', { page: 'home' }],
+    ['#/drills/subnet-range', { page: 'drill', kind: 'subnet-range', level: 1 }],
+    ['#/drills/subnet-range?level=3&seed=81723', { page: 'drill', kind: 'subnet-range', level: 3, seed: 81723 }],
+    ['#/drills/subnet-range?level=9&seed=-1', { page: 'drill', kind: 'subnet-range', level: 1 }],
+    ['#/drills/subnet-range?seed=99999999999', { page: 'drill', kind: 'subnet-range', level: 1 }],
+    ['#/drills/<b>', { page: 'drills' }],
   ])('%s', (hash, route) => {
     expect(parseRoute(hash)).toEqual(route);
   });
@@ -23,5 +32,6 @@ describe('router', () => {
     expect(parseRoute(href({ page: 'workspace', projectId: 'x1' }))).toEqual({ page: 'workspace', projectId: 'x1' });
     expect(href({ page: 'workspace' })).toBe('#/playground');
     expect(parseRoute(href({ page: 'problem', slug: 'static-routes' }))).toEqual({ page: 'problem', slug: 'static-routes' });
+    expect(parseRoute(href({ page: 'drill', kind: 'mac-table', level: 2, seed: 7 }))).toEqual({ page: 'drill', kind: 'mac-table', level: 2, seed: 7 });
   });
 });

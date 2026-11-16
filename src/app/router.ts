@@ -7,6 +7,9 @@
 //   #/workspace/<projectId> a saved project
 //   #/projects              saved projects
 //   #/lab/<labId>           a deep link that opens a sample lab (see app/LabLink.tsx)
+//   #/u/<handle>            a learner's profile (public half; the owner also sees the private half)
+//   #/drills                the drill picker
+//   #/drills/<kind>?level=2[&seed=N]  one drill set (a seed replays that exact set)
 // Hash routing works from any static host or folder (no server rewrites needed).
 
 import { useSyncExternalStore } from 'react';
@@ -19,13 +22,20 @@ export type Route =
   | { page: 'lab'; labId?: string }
   | { page: 'problems' }
   | { page: 'leaderboard' }
-  | { page: 'problem'; slug: string };
+  | { page: 'problem'; slug: string }
+  | { page: 'profile'; handle: string }
+  | { page: 'drills' }
+  | { page: 'drill'; kind: string; level: 1 | 2 | 3; seed?: number };
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
+const KIND = /^[a-z0-9][a-z0-9-]{0,40}$/;
+const HANDLE = /^[A-Za-z0-9-]{1,39}$/;
+
 export function parseRoute(hash: string): Route {
-  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
+  const parts = path.split('/').filter(Boolean);
   switch (parts[0]) {
     case 'projects':
       return { page: 'projects' };
@@ -37,6 +47,20 @@ export function parseRoute(hash: string): Route {
       return parts[1] && SLUG.test(parts[1]) ? { page: 'problem', slug: parts[1] } : { page: 'problems' };
     case 'leaderboard':
       return { page: 'leaderboard' };
+    case 'u':
+      return parts[1] && HANDLE.test(parts[1]) ? { page: 'profile', handle: parts[1] } : { page: 'home' };
+    case 'drills': {
+      if (!parts[1] || !KIND.test(parts[1])) return { page: 'drills' };
+      const q = new URLSearchParams(query);
+      const level = Number(q.get('level'));
+      const seed = q.get('seed');
+      return {
+        page: 'drill',
+        kind: parts[1],
+        level: level === 2 || level === 3 ? level : 1,
+        ...(seed && /^\d{1,10}$/.test(seed) && Number(seed) <= 0xffffffff ? { seed: Number(seed) } : {}),
+      };
+    }
     case 'playground':
       return { page: 'workspace', projectId: undefined };
     case 'workspace':
@@ -51,6 +75,8 @@ export function href(r: Route): string {
   if (r.page === 'workspace') return r.projectId ? `#/workspace/${r.projectId}` : '#/playground';
   if (r.page === 'problem') return `#/problems/${r.slug}`;
   if (r.page === 'lab') return r.labId ? `#/lab/${r.labId}` : '#/learn';
+  if (r.page === 'profile') return `#/u/${r.handle}`;
+  if (r.page === 'drill') return `#/drills/${r.kind}?level=${r.level}${r.seed !== undefined ? `&seed=${r.seed}` : ''}`;
   return `#/${r.page}`;
 }
 

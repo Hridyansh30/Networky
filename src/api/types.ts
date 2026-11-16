@@ -53,7 +53,8 @@ export interface SubmitResult {
 
 export interface LeaderboardRow {
   rank: number;
-  handle: string;
+  /** null for a learner who hid their profile: the row stays, without a name or link. */
+  handle: string | null;
   displayName: string;
   avatarUrl: string | null;
   xp: number;
@@ -76,4 +77,38 @@ export interface SubmissionSummary {
   max: number;
   engineVersion: string;
   at: number;
+}
+
+/** GET /users/:handle (server/routes/profiles.ts). */
+export interface PublicProfile {
+  handle: string;
+  displayName: string;
+  avatarUrl: string | null;
+  memberSince: string;
+  xp: number;
+  level: Level;
+  rank: number | null;
+  solvedCount: number;
+  problemCount: number;
+  byDifficulty: { difficulty: 'easy' | 'medium' | 'hard'; solved: number; total: number }[];
+  byTopic: { topic: string; solved: number; total: number }[];
+  solved: { slug: string; title: string; difficulty: 'easy' | 'medium' | 'hard'; topic: string; day: string }[];
+  /** Graded submits plus finished drill sets per UTC day, last 365 days; days without activity are left out. */
+  activity: { day: string; n: number }[];
+}
+
+/** GET /me/profile: the owner's own view. */
+export interface OwnProfile {
+  profile: PublicProfile;
+  visibility: 'public' | 'hidden';
+  private: {
+    submits: number;
+    failedSubmits: number;
+    acceptance: number | null;
+    hintsUsed: number;
+    solutionsOpened: number;
+    unsolved: { slug: string; title: string; topic: string }[];
+    xpByDay: { day: string; problem: number; practice: number }[];
+    practice: { kind: string; sets: number; correct: number; xp: number; answered: number }[];
+  };
 }

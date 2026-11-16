@@ -65,6 +65,9 @@ export function AccountMenu() {
               )}
             </span>
           </div>
+          <a role="menuitem" href={href({ page: 'profile', handle: user.handle })}>
+            <Icon.Eye size={16} /> Your profile
+          </a>
           <a role="menuitem" href={href({ page: 'leaderboard' })}>
             <Icon.Bars size={16} /> Leaderboard
           </a>

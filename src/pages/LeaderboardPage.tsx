@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { href } from '../app/router';
 import { useApi } from '../api/useApi';
 import type { LeaderboardRow } from '../api/types';
+import { PRACTICE_XP_PER_DAY } from '../drills';
 import { useAccountStore } from '../store/accountStore';
 import { TopNav } from '../ui/TopNav';
 
@@ -30,7 +31,9 @@ export function LeaderboardPage() {
             <p className="eyebrow">Ranked by XP</p>
             <h1>Leaderboard</h1>
             <p className="muted">
-              XP comes from solved problems: easy 10, medium 20, hard 40, less for hints. Every solve was graded again on the server. Ties go to whoever got there first.
+              {period === 'all'
+                ? 'XP comes from solved problems: easy 10, medium 20, hard 40, less for hints. Every solve was graded again on the server. Ties go to whoever got there first.'
+                : `This week counts problem XP plus practice XP from drills (at most ${PRACTICE_XP_PER_DAY} a day), so coming back every day pays. Weeks start Monday 00:00 UTC.`}
             </p>
           </div>
           <div className="seg" role="tablist" aria-label="Period">
@@ -75,13 +78,20 @@ export function LeaderboardPage() {
                 </thead>
                 <tbody>
                   {board.data.rows.map((r) => (
-                    <tr key={r.handle} className={me?.user?.handle === r.handle ? 'is-you' : ''}>
+                    <tr key={r.rank} className={r.handle && me?.user?.handle === r.handle ? 'is-you' : ''}>
                       <td className="num">{r.rank}</td>
                       <td>
-                        <span className="board-who">
-                          {r.avatarUrl ? <img src={r.avatarUrl} alt="" width={24} height={24} loading="lazy" referrerPolicy="no-referrer" /> : <span className="account-initial sm">{r.handle.slice(0, 1).toUpperCase()}</span>}
-                          <b>{r.displayName}</b> <span className="muted">@{r.handle}</span>
-                        </span>
+                        {r.handle ? (
+                          <a className="board-who" href={href({ page: 'profile', handle: r.handle })}>
+                            {r.avatarUrl ? <img src={r.avatarUrl} alt="" width={24} height={24} loading="lazy" referrerPolicy="no-referrer" /> : <span className="account-initial sm">{r.handle.slice(0, 1).toUpperCase()}</span>}
+                            <b>{r.displayName}</b> <span className="muted">@{r.handle}</span>
+                          </a>
+                        ) : (
+                          <span className="board-who muted">
+                            <span className="account-initial sm">?</span>
+                            {r.displayName}
+                          </span>
+                        )}
                       </td>
                       <td className="num">{r.xp}</td>
                       {period === 'all' && <td className="num">{r.solved}</td>}

@@ -12,6 +12,9 @@ import { useProjectStore } from '../../src/store/projectStore';
 import { useTopologyStore } from '../../src/store/topologyStore';
 import { emptyProgress, MemoryProgress } from '../../src/storage/progressRepository';
 import { harness, type Browser, type Harness } from './harness';
+import { SET_SIZE } from '../../src/drills';
+import { MemoryDrills } from '../../src/storage/drillRepository';
+import { resetDrillStore, useDrillStore } from '../../src/store/drillStore';
 
 let h: Harness;
 let b: Browser;
@@ -184,5 +187,22 @@ describe('client: deleting the account', () => {
     expect(ps().remote).toBe(false);
     expect(ps().progress['first-ping'].solved).toBe(true);
     expect((await h.db.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>())!.n).toBe(0);
+  });
+
+  it('drills signed in: the server hands out the seed, replays the answers and counts practice XP', async () => {
+    resetDrillStore(new MemoryDrills());
+    await acc().load();
+    await acc().devSignIn('ada');
+    const ds = () => useDrillStore.getState();
+    await ds().start('mask-cidr', 1);
+    const row = await h.db.prepare('SELECT seed FROM drill_sets').first<{ seed: number }>();
+    expect(ds().set!.seed).toBe(row!.seed);
+    expect(ds().set!.practiceOnly).toBeNull();
+    for (let i = 0; i < SET_SIZE; i++) {
+      ds().answer({ ...(ds().question()!.q.expected as Record<string, string>) });
+      await ds().next();
+    }
+    expect(ds().set!.server).toEqual({ xp: 21, earned: 21, practiceToday: 21, cap: 30 });
+    expect((await b.json('/api/v1/leaderboard?period=week')).body.rows[0]).toMatchObject({ handle: 'ada', xp: 21 });
   });
 });

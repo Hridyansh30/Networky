@@ -769,3 +769,90 @@ table.data tr.clickable:hover td { background: var(--surface-2); }
 .history .bad { color: var(--error); }
 .account-sep { height: 1px; background: var(--border); margin: 4px 0; }
 .confirm .field > span { display: block; margin: var(--space-3) 0 6px; }
+
+/* ---------------------------------------------------------------- drills (phase 7) */
+.practice-meter { display: flex; align-items: center; gap: var(--space-3); }
+.practice-meter .xp-track { width: 140px; }
+.drill-card .seg { align-self: flex-start; }
+.drill-topic { align-self: flex-start; }
+.drill-record { min-height: 1.4em; }
+.drill-page { max-width: 760px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-4); }
+.drill-dots { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0; }
+.drill-dots li { width: 28px; height: 6px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--border); }
+.drill-dots li.now { border-color: var(--accent); }
+.drill-dots li.right { background: var(--success); border-color: transparent; }
+.drill-dots li.wrong { background: var(--error); border-color: transparent; }
+.drill-prompt { font-size: var(--fs-lg); line-height: 1.5; }
+.drill-fields { display: flex; flex-direction: column; gap: var(--space-3); }
+.drill-field { display: grid; grid-template-columns: 170px 1fr; align-items: center; gap: 4px var(--space-3); }
+.drill-field input { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.drill-field.right input { border-color: var(--success); }
+.drill-field.wrong input { border-color: var(--error); }
+.drill-expected { grid-column: 2; }
+.drill-fields .btn { align-self: flex-start; }
+.drill-choices { display: flex; flex-direction: column; gap: var(--space-2); }
+.drill-choice { justify-content: flex-start; text-align: left; font-family: inherit; }
+.drill-choice.right { border-color: var(--success); background: color-mix(in srgb, var(--success) 10%, transparent); }
+.drill-choice.wrong { border-color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); }
+.drill-choice:disabled { opacity: 1; cursor: default; }
+.drill-question .callout { flex-direction: column; margin-top: var(--space-3); }
+.callout.success { background: color-mix(in srgb, var(--success) 10%, transparent); }
+.callout.info { background: var(--surface-2); }
+.drill-explain { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 600px) {
+  .drill-field { grid-template-columns: 1fr; }
+  .drill-expected { grid-column: 1; }
+  .drill-dots li { width: 20px; }
+}
+.drill-prompt { white-space: pre-line; }
+.drill-choice { white-space: normal; }
+
+/* Top navigation on narrower screens (phase 7 added Drills; the bar already overflowed below ~1400px). */
+@media (max-width: 1440px) {
+  .topnav { gap: var(--space-4); }
+  .topnav nav a { padding: 9px 10px; }
+  .topnav .xp-track { width: 80px; }
+}
+@media (max-width: 1400px) {
+  .topnav nav .nav-label { display: none; }
+}
+@media (max-width: 900px) {
+  .topnav { flex-wrap: wrap; height: auto; padding-top: 10px; padding-bottom: 6px; row-gap: 6px; }
+  .topnav nav { order: 3; width: 100%; justify-content: space-between; overflow-x: auto; }
+  .topnav .xp-track { display: none; }
+}
+
+/* ---------------------------------------------------------------- profiles (phase 7) */
+.profile-page { max-width: 1100px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-5); }
+.profile-head { display: flex; align-items: center; gap: var(--space-4); }
+.profile-head img, .account-initial.lg { width: 72px; height: 72px; border-radius: 50%; border: 1px solid var(--border); }
+.account-initial.lg { display: grid; place-items: center; font-size: 28px; }
+.profile-head h1 { font-size: var(--fs-xl); }
+.profile-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-3); }
+.profile-tiles > div { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.profile-tiles b { font-size: var(--fs-xl); }
+.profile-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-5); align-items: start; }
+.profile-cols h3 { margin-top: var(--space-3); font-size: var(--fs-md, 15px); }
+.profile-bar { display: grid; grid-template-columns: 120px 1fr 56px; align-items: center; gap: var(--space-3); }
+.profile-bar .bar { width: 100%; }
+.profile-bar > span:last-child { text-align: right; }
+.plain { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.profile-solved li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.calendar { margin: 0; overflow-x: auto; }
+.calendar svg { width: 100%; min-width: 640px; height: auto; display: block; }
+.calendar-month { font-size: 9px; fill: var(--text-muted); }
+.cal-0 { fill: var(--surface-2); stroke: var(--border); stroke-width: 0.5; }
+.cal-1 { fill: color-mix(in srgb, var(--accent) 25%, var(--surface)); }
+.cal-2 { fill: color-mix(in srgb, var(--accent) 50%, var(--surface)); }
+.cal-3 { fill: color-mix(in srgb, var(--accent) 75%, var(--surface)); }
+.cal-4 { fill: var(--accent); }
+.profile-private { border-style: dashed; }
+.profile-private-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.xp-weeks { display: flex; flex-direction: column; gap: 4px; }
+.xp-week { display: grid; grid-template-columns: 48px 1fr 40px; align-items: center; gap: var(--space-2); }
+.xp-week-bar { display: flex; height: 10px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.xp-week-problem, .key-problem { background: var(--accent); }
+.xp-week-practice, .key-practice { background: color-mix(in srgb, var(--accent) 40%, var(--surface)); }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin: 0 4px 0 8px; }
+a.board-who { color: inherit; }
+a.board-who:hover b { color: var(--accent); }

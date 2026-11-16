@@ -12,6 +12,7 @@ const LINKS: readonly [Route, string, (typeof Icon)[keyof typeof Icon], Route['p
   [{ page: 'home' }, 'Home', Icon.Home, ['home']],
   [{ page: 'problems' }, 'Problems', Icon.Code, ['problems', 'problem']],
   [{ page: 'learn' }, 'Learn', Icon.Book, ['learn']],
+  [{ page: 'drills' }, 'Drills', Icon.Zap, ['drills', 'drill']],
   [{ page: 'workspace' }, 'Playground', Icon.Play, ['workspace']],
   [{ page: 'projects' }, 'Projects', Icon.Folder, ['projects']],
   [{ page: 'leaderboard' }, 'Leaderboard', Icon.Bars, ['leaderboard']],
@@ -32,9 +33,9 @@ export function TopNav() {
         {LINKS.filter(([to]) => server || to.page !== 'leaderboard').map(([to, label, I, pages]) => {
           const active = pages.includes(route.page);
           return (
-            <a key={label} href={href(to)} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}>
+            <a key={label} href={href(to)} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} aria-label={label} title={label}>
               <I size={17} />
-              {label}
+              <span className="nav-label">{label}</span>
             </a>
           );
         })}

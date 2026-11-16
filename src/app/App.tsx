@@ -1,11 +1,14 @@
 import { useEffect } from 'react';
+import { DrillSetPage, DrillsPage } from '../pages/DrillsPage';
 import { HomePage } from '../pages/HomePage';
 import { LeaderboardPage } from '../pages/LeaderboardPage';
 import { LearnPage } from '../pages/LearnPage';
 import { ProblemPage } from '../pages/ProblemPage';
 import { ProblemsPage } from '../pages/ProblemsPage';
+import { ProfilePage } from '../pages/ProfilePage';
 import { ProjectsPage } from '../pages/ProjectsPage';
 import { WorkspacePage } from '../pages/WorkspacePage';
+import { drillKind } from '../drills';
 import { problemBySlug } from '../problems/catalog';
 import { EngineBanner } from '../ui/AccountMenu';
 import { ConfirmHost } from '../ui/Confirm';
@@ -34,6 +37,12 @@ function title(route: Route): string {
       return 'Playground · Networky';
     case 'lab':
       return 'Opening lab · Networky';
+    case 'profile':
+      return `@${route.handle} · Networky`;
+    case 'drills':
+      return 'Drills · Networky';
+    case 'drill':
+      return `${drillKind(route.kind)?.title ?? 'Drill'} · Networky`;
   }
 }
 
@@ -54,6 +63,9 @@ export function App() {
       {route.page === 'projects' && <ProjectsPage />}
       {route.page === 'learn' && <LearnPage />}
       {route.page === 'leaderboard' && <LeaderboardPage />}
+      {route.page === 'profile' && <ProfilePage key={route.handle} handle={route.handle} />}
+      {route.page === 'drills' && <DrillsPage />}
+      {route.page === 'drill' && <DrillSetPage key={`${route.kind}:${route.level}:${route.seed ?? ''}`} kind={route.kind} level={route.level} seed={route.seed} />}
       {route.page === 'workspace' && <WorkspacePage projectId={route.projectId} />}
       {route.page === 'lab' && <LabLink labId={route.labId} />}
       <ImportBanner />
