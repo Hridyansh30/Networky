@@ -16,7 +16,6 @@ invented numbers.
 | Interview Prep card / track | Problems mockup (light) | Content | 30 problems exist now, so a curated track is possible. Needs a decision on which problems go in. |
 | Randomized predict problems | Predict chunk | Content | The spec and placeholders support it (tested); none of the six predict problems is randomized yet, so a repeat attempt sees the same questions. |
 | Locking the device CLI and Desktop during a predict problem | Predict chunk | A read-only mode for device windows | The ping panel is hidden until all answers are in, but a learner can still open a device and ping from its CLI. Signed in, answers are judged on the server, but the learner can still try the ping on a device first. |
-| `interface range` in the CLI | Found while writing problems | Small CLI work | Real IOS has it; here each port is configured on its own. Hints were written to match. |
 | Upgrade to Pro / Premium | Both Problems mockups | A business decision | No paid tier exists. Cloudflare free plan is fine for commercial use; Vercel's is not (see docs/ci-cd.md). |
 | Left sidebar navigation (Home, Problems, Learn, Playground, My Labs, Saved Topologies, Submissions) | Problems mockup (light) | Revisit when there are more sections | Duplicated the top nav. My Labs and Saved Topologies are the Projects page today. |
 | Topic dropdown on Problems | Problems mockup (light) | Nothing; dropped as a duplicate | The topic chips do the same job. Bring it back if the chip row ever gets too long. |

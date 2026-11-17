@@ -279,3 +279,59 @@ describe('host command prompt', () => {
     expect(execute(newSession(pc('PC1')), 'enable', env).output[0]).toMatch(/Desktop tab/);
   });
 });
+
+describe('interface range', () => {
+  const portOf = (t: Topology, device: string, name: string) => Object.values(t.interfaces).find((i) => i.deviceId === device && i.name === name)!;
+
+  it('runs each interface command on every port in the range', () => {
+    const { env, state } = envFor(lanRouter().t);
+    const { s } = type(env, 'S1', 'en', 'conf t', 'interface range fa0/1 - 3', 'switchport mode access', 'switchport access vlan 10');
+    expect(prompt(s, env.topology())).toBe('S1(config-if-range)#');
+    for (const n of ['FastEthernet0/1', 'FastEthernet0/2', 'FastEthernet0/3']) {
+      expect(portOf(state.t, 'S1', n).switchport).toMatchObject({ mode: 'access', accessVlan: 10 });
+    }
+    expect(portOf(state.t, 'S1', 'FastEthernet0/4').switchport?.accessVlan ?? 1).toBe(1);
+  });
+
+  it('accepts abbreviations, no spaces around the dash, and comma lists', () => {
+    const { env, state } = envFor(lanRouter().t);
+    type(env, 'R1', 'en', 'conf t', 'int ra g0/0-1 , g0/2', 'shutdown');
+    for (const n of ['GigabitEthernet0/0', 'GigabitEthernet0/1', 'GigabitEthernet0/2']) expect(portOf(state.t, 'R1', n).adminUp).toBe(false);
+    expect(portOf(state.t, 'R1', 'Serial0/0/0').adminUp).toBe(true);
+  });
+
+  it('exit, end or a single interface leaves range mode', () => {
+    const { env } = envFor(lanRouter().t);
+    let { s } = type(env, 'S1', 'en', 'conf t', 'int range fa0/1 - 2', 'exit');
+    expect(prompt(s, env.topology())).toBe('S1(config)#');
+    s = type(env, 'S1', 'en', 'conf t', 'int range fa0/1 - 2', 'int fa0/5').s;
+    expect(prompt(s, env.topology())).toBe('S1(config-if)#');
+    expect(s.rangeIds).toBeUndefined();
+    s = type(env, 'S1', 'en', 'conf t', 'int range fa0/1 - 2', 'end').s;
+    expect(prompt(s, env.topology())).toBe('S1#');
+  });
+
+  it('rejects the whole range if one port is missing or the syntax is wrong', () => {
+    const { env } = envFor(lanRouter().t);
+    for (const bad of ['int range fa0/7 - 9', 'int range fa0/3 - 1', 'int range fa0/1 fa0/2', 'int range', 'int range fa0/1 - 999999']) {
+      const { out, s } = type(env, 'S1', 'en', 'conf t', bad);
+      expect(out.at(-1)).toMatch(/^% /);
+      expect(prompt(s, env.topology())).toBe('S1(config)#');
+    }
+  });
+
+  it('names the port in each error, one line per port', () => {
+    const { env } = envFor(lanRouter().t);
+    const { out } = type(env, 'R1', 'en', 'conf t', 'int range g0/0 - 1', 'encapsulation dot1q 10');
+    expect(out.slice(1)).toEqual([
+      '% GigabitEthernet0/0: encapsulation dot1Q is for subinterfaces (e.g. interface g0/0.10)',
+      '% GigabitEthernet0/1: encapsulation dot1Q is for subinterfaces (e.g. interface g0/0.10)',
+    ]);
+  });
+
+  it('do commands run once from range mode', () => {
+    const { env } = envFor(lanRouter().t);
+    const { out } = type(env, 'R1', 'en', 'conf t', 'int range g0/0 - 1', 'do show running-config');
+    expect(out.filter((l) => l === 'interface GigabitEthernet0/0')).toHaveLength(1);
+  });
+});

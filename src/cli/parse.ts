@@ -40,6 +40,35 @@ export function expandInterfaceName(tokens: string[]): { name: string; used: num
   return full ? { name: full + m[2], used } : null;
 }
 
+/** No device here has more ports than this; also stops 'fa0/1 - 999999' from building a huge list. */
+const MAX_RANGE = 64;
+
+/**
+ * 'interface range' arguments -> full interface names, in order, without repeats.
+ * 'fa0/1 - 4, g0/1' -> FastEthernet0/1..0/4 and GigabitEthernet0/1.
+ * Each item is a type, the slot part and a first port, then optionally '- <last port>'.
+ * Spaces around '-' and ',' are optional, as on real IOS. Returns null for bad syntax.
+ */
+export function expandInterfaceRange(args: string[]): string[] | null {
+  const text = args.join(' ').trim();
+  if (!text) return null;
+  const names: string[] = [];
+  for (const part of text.split(',')) {
+    const m = part.trim().match(/^([a-z]+)\s*((?:\d+\/)*)(\d+)(?:\s*-\s*(\d+))?$/i);
+    if (!m) return null;
+    const first = Number(m[3]);
+    const last = m[4] === undefined ? first : Number(m[4]);
+    if (last < first || last - first >= MAX_RANGE) return null;
+    for (let n = first; n <= last; n++) {
+      const exp = expandInterfaceName([`${m[1]}${m[2]}${n}`]);
+      if (!exp) return null;
+      names.push(exp.name);
+    }
+  }
+  const unique = [...new Set(names)];
+  return unique.length <= MAX_RANGE ? unique : null;
+}
+
 export function findInterface(t: Topology, deviceId: string, name: string): Interface | undefined {
   return t.devices[deviceId].interfaceIds.map((id) => t.interfaces[id]).find((i) => i.name.toLowerCase() === name.toLowerCase());
 }

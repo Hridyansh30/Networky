@@ -25,7 +25,7 @@ import type { Acl, Device, DeviceKind, DhcpPool, Interface, Topology } from '../
 import type { Probe, ProbeRequest } from '../engine/plugin';
 import type { Simulation } from '../engine/simulation';
 import type { TraceHop } from '../engine/traceroute';
-import { classfulPrefix, expandInterfaceName, findInterface, matchKeyword, parseVlanList, tokenize } from './parse';
+import { classfulPrefix, expandInterfaceName, expandInterfaceRange, findInterface, matchKeyword, parseVlanList, tokenize } from './parse';
 import { runningConfig } from './runningConfig';
 import { SHOW_COMMANDS } from './show';
 
@@ -36,6 +36,8 @@ export interface CliSession {
   mode: Mode;
   /** interface mode: the interface being configured */
   ifId?: string;
+  /** 'interface range': every port in the range, in order. Interface commands run once per port. */
+  rangeIds?: string[];
   /** a subinterface typed but not created yet (needs 'encapsulation dot1Q') */
   pendingSub?: { parentId: string; number: number };
   /** dhcp mode: the pool being edited (created once it has a network) */
@@ -71,7 +73,7 @@ export function prompt(s: CliSession, t: Topology): string {
     user: '>',
     exec: '#',
     config: '(config)#',
-    if: sub ? '(config-subif)#' : '(config-if)#',
+    if: s.rangeIds?.length ? '(config-if-range)#' : sub ? '(config-subif)#' : '(config-if)#',
     'router-rip': '(config-router)#',
     'router-ospf': '(config-router)#',
     dhcp: '(dhcp-config)#',
@@ -285,6 +287,25 @@ const COMMANDS: Command[] = [
         return c.set({ mode: 'if', ifId: undefined, pendingSub: { parentId: parent.id, number: Number(sub[2]) }, pool: undefined, acl: undefined });
       }
       fail(c, `${c.device.hostname} has no interface ${exp.name}`);
+    },
+  },
+  {
+    modes: ['config', ...SUBMODES],
+    words: ['interface', 'range'],
+    syntax: '<type><first> - <last> [, ...]  e.g. fa0/1 - 4, g0/1',
+    help: 'Configure several interfaces at once',
+    run: (c) => {
+      const names = expandInterfaceRange(c.args);
+      if (!names) return fail(c, `Invalid range '${c.args.join(' ')}'. Examples: fa0/1 - 4, fa0/1 - 2 , g0/1`);
+      const t = c.env.topology();
+      const ids: string[] = [];
+      for (const name of names) {
+        // Like IOS, one missing port rejects the whole range: nothing is half-selected.
+        const i = findInterface(t, c.device.id, name);
+        if (!i) return fail(c, `${c.device.hostname} has no interface ${name}`);
+        ids.push(i.id);
+      }
+      c.set({ mode: 'if', ifId: ids[0], rangeIds: ids, pendingSub: undefined, pool: undefined, acl: undefined });
     },
   },
   {
@@ -910,7 +931,8 @@ export function execute(session: CliSession, line: string, env: CliEnv): CliResu
     negate,
     out,
     set(patch) {
-      s = { ...s, ...patch };
+      // Any mode change ends an interface range, unless the command starts a new one.
+      s = { ...s, ...('mode' in patch && !('rangeIds' in patch) ? { rangeIds: undefined } : {}), ...patch };
       ctx.session = s;
     },
     apply(change) {
@@ -924,7 +946,23 @@ export function execute(session: CliSession, line: string, env: CliEnv): CliResu
       }
     },
   };
-  r.cmd.run(ctx);
+  // In 'interface range' mode an interface command runs once per port, as if it were
+  // typed under each 'interface' in turn. Mode commands (exit, end, interface) run once.
+  const range = s.mode === 'if' && mode === 'if' && !r.cmd.modes.includes('config') ? s.rangeIds : undefined;
+  if (!range?.length) {
+    r.cmd.run(ctx);
+    return { session: s, output: out };
+  }
+  for (const id of range) {
+    const from = out.length;
+    ctx.set({ ifId: id });
+    ctx.device = env.topology().devices[s.deviceId];
+    r.cmd.run(ctx);
+    // Say which port an error belongs to: one bad port should not hide the others.
+    const name = env.topology().interfaces[id]?.name ?? id;
+    for (let k = from; k < out.length; k++) if (out[k].startsWith('% ')) out[k] = `% ${name}: ${out[k].slice(2)}`;
+  }
+  ctx.set({ ifId: range[0] });
   return { session: s, output: out };
 }
 

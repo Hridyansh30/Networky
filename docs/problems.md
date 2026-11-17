@@ -69,8 +69,8 @@ Rules of thumb, each learned from a problem that was wrong at first:
 4. **Know the outcome word.** No route back gives `lost`; a host in another
    VLAN on the same subnet gives `unreachable`; a closed port gives `refused`;
    an ACL gives `prohibited`.
-5. **Hints must use commands this CLI accepts.** For example there is no
-   `interface range` here.
+5. **Hints must use commands this CLI accepts.** `cliSolutions.test.ts` types
+   them into the CLI, so a hint that quotes a command the CLI rejects fails CI.
 
 Visibility is decided by difficulty: easy shows every test, medium shows the
 ones that send traffic and hides the config checks, hard hides everything
