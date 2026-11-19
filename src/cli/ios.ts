@@ -19,7 +19,7 @@
 import { parseRule } from '../model/acl';
 import { isHostKind } from '../model/catalog';
 import { isUsableHost, isValidIPv4, maskToPrefix, networkOf, formatIPv4, parseIPv4, subnetsOverlap } from '../model/ip';
-import { parseCidr6 } from '../model/ip6';
+import { isValidIPv6, parseCidr6 } from '../model/ip6';
 import * as ops from '../model/ops';
 import type { Acl, Device, DeviceKind, DhcpPool, Interface, Topology } from '../model/types';
 import type { Probe, ProbeRequest } from '../engine/plugin';
@@ -120,6 +120,10 @@ const SUBMODES: Mode[] = ['if', 'router-rip', 'router-ospf', 'dhcp', 'nacl'];
 
 const fail = (c: RunContext, msg: string) => c.out.push(`% ${msg}`);
 
+// What IOS says for a destination it cannot parse (it has no DNS here), before sending anything.
+const UNRECOGNIZED_HOST = 'Unrecognized host or address, or protocol not running.';
+const isAddress = (s: string) => isValidIPv4(s) || isValidIPv6(s);
+
 function need(c: RunContext, n: number, syntax: string): boolean {
   if (c.args.length >= n) return true;
   fail(c, `Incomplete command. Usage: ${syntax}`);
@@ -212,6 +216,7 @@ const COMMANDS: Command[] = [
     run: (c) => {
       const dst = c.args[0] === 'ipv6' || c.args[0] === 'ip' ? c.args[1] : c.args[0];
       if (!dst) return fail(c, 'Incomplete command. Usage: ping <address>');
+      if (!isAddress(dst)) return fail(c, UNRECOGNIZED_HOST);
       c.out.push('Type escape sequence to abort.', `Sending 5, 100-byte ICMP Echos to ${dst}, timeout is 2 seconds:`);
       const marks: string[] = [];
       const rtts: number[] = [];
@@ -238,6 +243,7 @@ const COMMANDS: Command[] = [
     help: 'Trace the route to a destination',
     run: (c) => {
       if (!need(c, 1, 'traceroute <address>')) return;
+      if (!isAddress(c.args[0])) return fail(c, UNRECOGNIZED_HOST);
       c.out.push('Type escape sequence to abort.', `Tracing the route to ${c.args[0]}`, '');
       for (const h of c.env.traceroute(c.device.id, c.args[0])) {
         const n = String(h.ttl).padStart(3);
@@ -406,7 +412,9 @@ const COMMANDS: Command[] = [
       if (!need(c, 1, 'ip dhcp excluded-address <low> [<high>]')) return;
       const lo = parseIPv4(c.args[0]);
       const hi = parseIPv4(c.args[1] ?? c.args[0]);
-      if (lo === null || hi === null || hi < lo || hi - lo > 255) return fail(c, 'Invalid range (at most 256 addresses)');
+      if (lo === null || hi === null) return fail(c, `Invalid address '${lo === null ? c.args[0] : c.args[1]}'`);
+      if (hi < lo) return fail(c, 'The high address must not be below the low address');
+      if (hi - lo > 255) return fail(c, 'Invalid range (at most 256 addresses)');
       const range = Array.from({ length: hi - lo + 1 }, (_, k) => formatIPv4(lo + k));
       const pools = c.device.dhcpPools ?? [];
       const covering = pools.filter((p) => range.some((a) => networkOf(a, p.prefixLength) === parseIPv4(p.network)));

@@ -128,6 +128,22 @@ describe('configuring a router from the CLI', () => {
     expect(type(env, 'R1', 'en', 'conf t', 'int g0/0', 'ip address 192.168.1.2 255.255.255.0').out).toHaveLength(1);
   });
 
+  it('ping and traceroute refuse a destination that is not an address before sending', () => {
+    const { env } = envFor(lanRouter().t);
+    expect(type(env, 'R1', 'en', 'ping 999.1.1.1').out).toEqual(['% Unrecognized host or address, or protocol not running.']);
+    expect(type(env, 'R1', 'en', 'traceroute server').out).toEqual(['% Unrecognized host or address, or protocol not running.']);
+  });
+
+  it('a reversed DHCP exclusion range gets its own message', () => {
+    const { env } = envFor(lanRouter().t);
+    const { out } = type(env, 'R1', 'en', 'conf t', 'ip dhcp excluded-address 192.168.1.20 192.168.1.10', 'ip dhcp excluded-address 192.168.1.1 192.168.2.10', 'ip dhcp excluded-address 192.168.1.300');
+    expect(out.slice(1)).toEqual([
+      '% The high address must not be below the low address',
+      '% Invalid range (at most 256 addresses)',
+      "% Invalid address '192.168.1.300'",
+    ]);
+  });
+
   it('the typo from the mockup ("address" without "ip") is invalid input', () => {
     const { env } = envFor(lanRouter().t);
     const { out } = type(env, 'R1', 'en', 'conf t', 'int g0/0', 'address 10.0.0.1 255.255.255.0');
