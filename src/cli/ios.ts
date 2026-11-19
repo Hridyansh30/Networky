@@ -18,7 +18,7 @@
 
 import { parseRule } from '../model/acl';
 import { isHostKind } from '../model/catalog';
-import { isValidIPv4, maskToPrefix, networkOf, formatIPv4, parseIPv4 } from '../model/ip';
+import { isUsableHost, isValidIPv4, maskToPrefix, networkOf, formatIPv4, parseIPv4, subnetsOverlap } from '../model/ip';
 import { parseCidr6 } from '../model/ip6';
 import * as ops from '../model/ops';
 import type { Acl, Device, DeviceKind, DhcpPool, Interface, Topology } from '../model/types';
@@ -528,7 +528,15 @@ const COMMANDS: Command[] = [
       if (!i) return;
       if (c.negate) return void c.apply((t) => ops.setInterfaceIp(t, i.id, undefined));
       const ip = ipMask(c, c.args[0], c.args[1]);
-      if (ip) c.apply((t) => ops.setInterfaceIp(t, i.id, ip));
+      if (!ip) return;
+      // IOS refuses these two at the prompt instead of leaving a broken router.
+      if (!isUsableHost(ip.address, ip.prefixLength)) return fail(c, `Bad mask /${ip.prefixLength} for address ${ip.address}`);
+      const t = c.env.topology();
+      const clash = c.device.interfaceIds
+        .map((id) => t.interfaces[id])
+        .find((o) => o && o.id !== i.id && o.ipv4 && subnetsOverlap(ip.address, ip.prefixLength, o.ipv4.address, o.ipv4.prefixLength));
+      if (clash) return fail(c, `${formatIPv4(networkOf(ip.address, ip.prefixLength))} overlaps with ${clash.name}`);
+      c.apply((t) => ops.setInterfaceIp(t, i.id, ip));
     },
   },
   {

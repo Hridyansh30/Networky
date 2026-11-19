@@ -108,6 +108,26 @@ describe('configuring a router from the CLI', () => {
     expect(state.t).toBe(before);
   });
 
+  it('refuses the network or broadcast address, like IOS', () => {
+    const { env, state } = envFor(lanRouter().t);
+    const before = state.t;
+    const { out } = type(env, 'R1', 'en', 'conf t', 'int g0/0', 'ip address 192.168.1.0 255.255.255.0', 'ip address 192.168.1.255 255.255.255.0');
+    expect(out.slice(-2)).toEqual(['% Bad mask /24 for address 192.168.1.0', '% Bad mask /24 for address 192.168.1.255']);
+    expect(state.t).toBe(before);
+    // /31 links have no network or broadcast address, so both ends are usable
+    expect(type(env, 'R1', 'en', 'conf t', 'int s0/0/0', 'ip address 10.0.0.0 255.255.255.254').out).toEqual([expect.stringMatching(/^Enter configuration/)]);
+  });
+
+  it('refuses a subnet that overlaps another port on the same router', () => {
+    const { env, state } = envFor(lanRouter().t);
+    const { out } = type(env, 'R1', 'en', 'conf t', 'int g0/0', 'ip address 192.168.1.1 255.255.255.0', 'int g0/1', 'ip address 192.168.1.129 255.255.255.128');
+    expect(out.at(-1)).toBe('% 192.168.1.128 overlaps with GigabitEthernet0/0');
+    const g01 = Object.values(state.t.interfaces).find((i) => i.deviceId === 'R1' && i.name === 'GigabitEthernet0/1')!;
+    expect(g01.ipv4).toBeUndefined();
+    // re-addressing the same port is not an overlap with itself
+    expect(type(env, 'R1', 'en', 'conf t', 'int g0/0', 'ip address 192.168.1.2 255.255.255.0').out).toHaveLength(1);
+  });
+
   it('the typo from the mockup ("address" without "ip") is invalid input', () => {
     const { env } = envFor(lanRouter().t);
     const { out } = type(env, 'R1', 'en', 'conf t', 'int g0/0', 'address 10.0.0.1 255.255.255.0');
