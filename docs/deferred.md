@@ -10,17 +10,17 @@ invented numbers.
 
 | Feature | From | Waits for | Notes |
 | --- | --- | --- | --- |
-| Notifications bell | Both Problems mockups | Phase 6 accounts | Nothing to notify about without accounts. |
+| Notifications bell | Both Problems mockups | Something to notify about | Accounts exist since phase 6, but nothing sends a notification yet (no contests, replies or follows). |
 | Compete menu, Contests card, timed contests | Both Problems mockups | Phase 8 | Needs the server judge plus anti-cheat. |
-| Discuss | Both Problems mockups | Phase 7+ | Needs accounts and moderation. |
-| Interview Prep card / track | Problems mockup (light) | Content | 30 problems exist now, so a curated track is possible. Needs a decision on which problems go in. |
+| Discuss | Both Problems mockups | Moderation | Accounts exist since phase 6; a public comment area still needs moderation and abuse handling. |
+| Interview Prep card / track | Problems mockup (light) | Content | 36 problems exist now, so a curated track is possible. Needs a decision on which problems go in. |
 | Randomized predict problems | Predict chunk | Content | The spec and placeholders support it (tested); none of the six predict problems is randomized yet, so a repeat attempt sees the same questions. |
 | Locking the device CLI and Desktop during a predict problem | Predict chunk | A read-only mode for device windows | The ping panel is hidden until all answers are in, but a learner can still open a device and ping from its CLI. Signed in, answers are judged on the server, but the learner can still try the ping on a device first. |
 | Upgrade to Pro / Premium | Both Problems mockups | A business decision | No paid tier exists. Cloudflare free plan is fine for commercial use; Vercel's is not (see docs/ci-cd.md). |
 | Left sidebar navigation (Home, Problems, Learn, Playground, My Labs, Saved Topologies, Submissions) | Problems mockup (light) | Revisit when there are more sections | Duplicated the top nav. My Labs and Saved Topologies are the Projects page today. |
 | Topic dropdown on Problems | Problems mockup (light) | Nothing; dropped as a duplicate | The topic chips do the same job. Bring it back if the chip row ever gets too long. |
 | Sort by "Newest" | Problems mockup | Problems carrying a publish date | Today: default order, difficulty, title. |
-| Buddies, Job Filter, streak flame | Problems mockup (dark) | Phase 7+ | Social and jobs features. |
+| Buddies, Job Filter, streak flame | Problems mockup (dark) | Not scheduled | Social and jobs features. Phase 7 shipped profiles and an activity calendar, not these. |
 | AI tutor | Platform plan | Phase 8 | |
 | Private problems in the web app | Phase 6 design | The first private problem | The server side is wired (`NETWORKY_PRIVATE_CONTENT`, docs/judge.md). The web app still needs the public half of a private problem (statement, start network, visible tests) in its catalog; that format is decided with the first such problem. |
 | Other sign-in providers (Google, email) | Phase 6 design | Demand | GitHub only: the audience has accounts, and one provider means one OAuth flow to secure. The `identities` table already allows more. |

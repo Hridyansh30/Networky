@@ -11,7 +11,7 @@ Build a network on a canvas, configure each device, save it and load it back. Th
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # model + store unit tests
+npm test           # all unit, UI and server tests (see Tests below)
 npm run build      # type-check + production build
 ```
 
@@ -67,7 +67,7 @@ The engine imports the model and nothing from React. `src/engine/simulation.test
   - Server: the same, plus a **DHCP Server** app and a **Services** tab (HTTP pages, DNS records, mail domain and accounts, FTP accounts and files).
   - Router and switch: **Config**, **CLI** and **Tables**.
   - Hub: **Config** only.
-- **CLI:** IOS-style modes (`>`, `#`, `(config)#`, `(config-if)#`, router, DHCP pool and named-ACL modes), unique-prefix abbreviations (`conf t`, `sh ip int br`), `?` help, Tab completion, `no` and `do`, `interface range` (`int range fa0/1 - 4, g0/1`: each interface command runs on every port, errors are tagged with the port), and a caret under invalid input. `show running-config` is generated from the model.
+- **CLI:** IOS-style modes (`>`, `#`, `(config)#`, `(config-if)#`, router, DHCP pool and named-ACL modes), unique-prefix abbreviations (`conf t`, `sh ip int br`), `?` help, Tab completion, `no` and `do`, `interface range` (`int range fa0/1 - 4, g0/1`: each interface command runs on every port, errors are tagged with the port), a caret under invalid input, and IOS's own refusals for a router port given its subnet's network or broadcast address or a subnet that overlaps another port. `show running-config` is generated from the model.
 - **Realtime / Simulation:** Realtime is the converged network, where everything answers at once. Simulation moves frames one hop per step. **Watch boot** replays STP, RIP/OSPF and DHCP starting up.
 - **Light and dark themes.** Every colour lives in `src/theme/tokens.css`.
 
@@ -219,7 +219,7 @@ Design, privacy rules, the measured free-plan budget and how to add a drill kind
 
 ## Tests
 
-`npm test` runs about 750 tests:
+`npm test` runs about 770 tests:
 - model ops, validation and serialization, including the security cases;
 - every protocol plugin and a modularity check;
 - every lab exercise, booted and run;
