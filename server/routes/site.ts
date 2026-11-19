@@ -77,7 +77,8 @@ export const siteRoutes = new Hono<AppEnv>()
 
   .get('/leaderboard', async (c) => {
     const period = c.req.query('period') ?? 'all';
-    const page = Math.max(0, Math.min(100, Number(c.req.query('page') ?? 0) || 0));
+    // Whole pages only: ?page=1.5 would otherwise become OFFSET 75 and rank 76.5.
+    const page = Math.max(0, Math.min(100, Math.floor(Number(c.req.query('page') ?? 0)) || 0));
     const size = 50;
     const db = c.env.DB;
     let rows: { handle: string; display_name: string; avatar_url: string | null; profile_visibility: string; xp: number; solved: number | null }[];

@@ -109,6 +109,11 @@ describe('leaderboard and stats', () => {
     expect((await third.json('/api/v1/leaderboard?period=week')).body.rows).toEqual([]);
     expect((await third.json('/api/v1/leaderboard?period=all')).body.rows).toHaveLength(3);
     expect((await third.json('/api/v1/leaderboard?period=year')).status).toBe(400);
+    // A fractional or junk page is read as a whole page, so ranks stay whole numbers.
+    const half = (await third.json('/api/v1/leaderboard?period=all&page=0.5')).body;
+    expect(half.page).toBe(0);
+    expect(half.rows.map((r: { rank: number }) => r.rank)).toEqual([1, 2, 3]);
+    expect((await third.json('/api/v1/leaderboard?page=abc')).body.page).toBe(0);
   });
 
   it('shows acceptance only after enough people tried', async () => {
