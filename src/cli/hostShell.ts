@@ -12,7 +12,7 @@ export const HOST_PROMPT = 'C:\\>';
 
 const HELP = [
   'Available commands:',
-  '  ping <address>        send 4 ICMP echo requests (IPv4 or IPv6)',
+  '  ping [-n N] <address> send N (default 4) ICMP echo requests (IPv4 or IPv6)',
   '  tracert <address>     list the routers on the way',
   '  ipconfig [/all]       show this computer\'s addresses',
   '  arp -a                show the ARP cache',
@@ -44,12 +44,20 @@ export function runHostCommand(deviceId: string, line: string, env: CliEnv): str
       return HELP;
 
     case 'ping': {
-      const dst = args.find((a) => !a.startsWith('-'));
-      if (!dst) return ['Usage: ping <address>'];
+      // -n takes a value, so skip it with its flag: 'ping -n 2 10.0.0.1' pings 10.0.0.1, not '2'.
+      let count = 4;
+      let dst: string | undefined;
+      for (let k = 0; k < args.length; k++) {
+        if (args[k].toLowerCase() === '-n') {
+          count = Number(args[++k]);
+          if (!Number.isInteger(count) || count < 1 || count > 20) return ['Bad value for option -n, valid range is from 1 to 20.'];
+        } else if (!args[k].startsWith('-')) dst ??= args[k];
+      }
+      if (!dst) return ['Usage: ping [-n count] <address>'];
       const out = ['', `Pinging ${dst} with 32 bytes of data:`, ''];
       let ok = 0;
       const rtts: number[] = [];
-      for (let seq = 1; seq <= 4; seq++) {
+      for (let seq = 1; seq <= count; seq++) {
         const p = env.probe({ kind: 'ping', sourceDeviceId: deviceId, destination: dst, seq });
         if (p.status === 'success') {
           ok++;
@@ -60,7 +68,7 @@ export function runHostCommand(deviceId: string, line: string, env: CliEnv): str
           out.push(`${msg(p.status)} (${p.detail})`);
         } else out.push(msg(p.status));
       }
-      out.push('', `Ping statistics for ${dst}:`, `    Packets: Sent = 4, Received = ${ok}, Lost = ${4 - ok} (${(4 - ok) * 25}% loss),`);
+      out.push('', `Ping statistics for ${dst}:`, `    Packets: Sent = ${count}, Received = ${ok}, Lost = ${count - ok} (${Math.round(((count - ok) / count) * 100)}% loss),`);
       if (ok) out.push('Approximate round trip times in milli-seconds:', `    Minimum = ${Math.min(...rtts)}ms, Maximum = ${Math.max(...rtts)}ms, Average = ${Math.round(rtts.reduce((a, b) => a + b, 0) / ok)}ms`);
       return out;
     }
@@ -71,6 +79,7 @@ export function runHostCommand(deviceId: string, line: string, env: CliEnv): str
       const out = ['', `Tracing route to ${args[0]} over a maximum of 16 hops:`, ''];
       for (const h of env.traceroute(deviceId, args[0])) {
         if (h.status === 'no-answer') out.push(`${String(h.ttl).padStart(3)}     *        *        *     Request timed out.`);
+        else if (!h.address) out.push(`${String(h.ttl).padStart(3)}     Destination host unreachable.`); // nothing left this host
         else out.push(`${String(h.ttl).padStart(3)}     ${h.address}${h.status === 'unreachable' ? '  reports: Destination host unreachable.' : ''}`);
       }
       out.push('', 'Trace complete.');

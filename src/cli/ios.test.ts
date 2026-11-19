@@ -288,6 +288,22 @@ describe('host command prompt', () => {
     expect(out).toMatch(/Sent = 4, Received = 4, Lost = 0 \(0% loss\)/);
   });
 
+  it('ping -n sets the count instead of being read as the address', () => {
+    const { env } = envFor(lab);
+    const out = runHostCommand(pc('PC1'), 'ping -n 2 192.168.1.1', env).join('\n');
+    expect(out).toMatch(/Pinging 192\.168\.1\.1 /);
+    expect(out).toMatch(/Sent = 2, Received = 2, Lost = 0 \(0% loss\)/);
+    expect(runHostCommand(pc('PC1'), 'ping -n 0 192.168.1.1', env)).toEqual(['Bad value for option -n, valid range is from 1 to 20.']);
+    expect(runHostCommand(pc('PC1'), 'ping -n 3', env)).toEqual(['Usage: ping [-n count] <address>']);
+  });
+
+  it('tracert from a host with no way out says so instead of printing undefined', () => {
+    const { env } = envFor(lanRouter().t); // PC1 has no gateway and the router has no address
+    const out = runHostCommand('PC1', 'tracert 10.9.9.9', env).join('\n');
+    expect(out).not.toMatch(/undefined/);
+    expect(out).toMatch(/1\s+Destination host unreachable\./);
+  });
+
   it('tracert lists hops; unknown commands are refused', () => {
     const { env } = envFor(lab);
     expect(runHostCommand(pc('PC2'), 'tracert 10.0.0.10', env).join('\n')).toMatch(/1\s+192\.168\.2\.1[\s\S]*2\s+10\.0\.0\.10/);
