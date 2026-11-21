@@ -273,7 +273,10 @@ const COMMANDS: Command[] = [
     help: 'Set the device name',
     kinds: ['router', 'switch'],
     run: (c) => {
-      if (need(c, 1, 'hostname <name>')) c.apply((t) => ops.setHostname(t, c.device.id, c.args[0]));
+      if (!need(c, 1, 'hostname <name>')) return;
+      // 'hostname R 2' used to keep 'R' silently; IOS refuses the extra word.
+      if (c.args.length > 1) return fail(c, 'A hostname is one word (no spaces)');
+      c.apply((t) => ops.setHostname(t, c.device.id, c.args[0]));
     },
   },
   {

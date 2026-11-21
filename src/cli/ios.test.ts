@@ -144,6 +144,13 @@ describe('configuring a router from the CLI', () => {
     ]);
   });
 
+  it('refuses a hostname with a space instead of keeping the first word', () => {
+    const { env, state } = envFor(lanRouter().t);
+    const { out } = type(env, 'R1', 'en', 'conf t', 'hostname R 2');
+    expect(out.at(-1)).toBe('% A hostname is one word (no spaces)');
+    expect(state.t.devices.R1.hostname).toBe('R1');
+  });
+
   it('the typo from the mockup ("address" without "ip") is invalid input', () => {
     const { env } = envFor(lanRouter().t);
     const { out } = type(env, 'R1', 'en', 'conf t', 'int g0/0', 'address 10.0.0.1 255.255.255.0');
