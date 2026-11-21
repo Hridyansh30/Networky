@@ -334,7 +334,11 @@ const COMMANDS: Command[] = [
         const idx = (c.device.staticRoutes ?? []).findIndex((r) => r.prefix === prefix && r.prefixLength === net.prefixLength && r.nextHop === c.args[2]);
         if (idx < 0) return fail(c, 'No matching route to delete');
         c.apply((t) => ops.removeStaticRoute(t, c.device.id, idx));
-      } else c.apply((t) => ops.addStaticRoute(t, c.device.id, { prefix, prefixLength: net.prefixLength, nextHop: c.args[2] }));
+      } else {
+        // Typing the exact same route again is a no-op on IOS, not an error.
+        if ((c.device.staticRoutes ?? []).some((r) => r.prefix === prefix && r.prefixLength === net.prefixLength && r.nextHop === c.args[2])) return;
+        c.apply((t) => ops.addStaticRoute(t, c.device.id, { prefix, prefixLength: net.prefixLength, nextHop: c.args[2] }));
+      }
     },
   },
   {

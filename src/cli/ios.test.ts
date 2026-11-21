@@ -151,6 +151,13 @@ describe('configuring a router from the CLI', () => {
     expect(state.t.devices.R1.hostname).toBe('R1');
   });
 
+  it('typing the same static route twice is a silent no-op; a different next hop is still refused', () => {
+    const { env, state } = envFor(lanRouter().t);
+    const { out } = type(env, 'R1', 'en', 'conf t', 'ip route 10.0.0.0 255.0.0.0 192.168.1.10', 'ip route 10.0.0.0 255.0.0.0 192.168.1.10', 'ip route 10.0.0.0 255.0.0.0 192.168.1.20');
+    expect(out.slice(1)).toEqual(['% A route to 10.0.0.0/8 already exists']);
+    expect(state.t.devices.R1.staticRoutes).toHaveLength(1);
+  });
+
   it('the typo from the mockup ("address" without "ip") is invalid input', () => {
     const { env } = envFor(lanRouter().t);
     const { out } = type(env, 'R1', 'en', 'conf t', 'int g0/0', 'address 10.0.0.1 255.255.255.0');
