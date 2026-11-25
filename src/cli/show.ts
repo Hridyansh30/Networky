@@ -107,6 +107,8 @@ export const SHOW_COMMANDS: Command[] = [
   show(['ip', 'arp'], 'ARP cache', ['router'], arp),
   show(['mac', 'address-table'], 'Learned MAC addresses', ['switch'], macAddressTable),
   show(['vlan', 'brief'], 'VLANs and their ports', ['switch'], (c) => asText(vlanTable(sim(c), c.device))),
+  // Plain 'show vlan' is the first thing most people type; it shows the same table here.
+  show(['vlan'], 'VLANs and their ports', ['switch'], (c) => asText(vlanTable(sim(c), c.device))),
   show(['spanning-tree'], 'STP root and port roles', ['switch'], (c) => (c.env.sim().plugin('stp') ? asText(stpTable(sim(c), c.device)) : ['% Spanning tree is not running'])),
   show(['ip', 'nat', 'translations'], 'NAT table', ['router'], (c) => table(['Pro', 'Inside global', 'Inside local', 'Outside', 'Hits'], natTable(sim(c), c.device).rows)),
   show(['access-lists'], 'ACLs with match counters', ['router'], accessLists),

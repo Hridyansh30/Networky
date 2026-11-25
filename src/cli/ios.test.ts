@@ -271,6 +271,13 @@ describe('switch CLI', () => {
     expect(state.t.devices.S1.stpPriority).toBe(4096);
   });
 
+  it('show vlan works without brief, and show vlan brief still does', () => {
+    const { env } = envFor(lanRouter().t);
+    const plain = type(env, 'S1', 'en', 'show vlan').out;
+    expect(plain[0]).not.toMatch(/Incomplete/);
+    expect(plain).toEqual(type(env, 'S1', 'en', 'sh vlan br').out);
+  });
+
   it('router-only commands do not exist on a switch', () => {
     const { env } = envFor(lanRouter().t);
     expect(type(env, 'S1', 'en', 'conf t', 'router rip').out.at(-1)).toMatch(/Invalid input/);
