@@ -926,6 +926,25 @@ export function execute(session: CliSession, line: string, env: CliEnv): CliResu
     tokens = tokens.slice(1);
     mode = 'exec';
   }
+  // Output modifier: 'show run | include ip'. Split it off before resolving the command.
+  let filter: ((line: string) => boolean) | 'begin' | undefined;
+  let beginAt: RegExp | undefined;
+  const bar = tokens.indexOf('|');
+  if (bar >= 0) {
+    const kind = matchKeyword(tokens[bar + 1] ?? '', ['include', 'exclude', 'begin']);
+    const pattern = tokens.slice(bar + 2).join(' ');
+    if (!pattern || kind === null || kind === 'ambiguous') return { session: s, output: ['% Usage: <show command> | include|exclude|begin <text>'] };
+    let re: RegExp;
+    try {
+      re = new RegExp(pattern); // IOS takes a regular expression and is case-sensitive
+    } catch {
+      return { session: s, output: [`% Invalid regular expression '${pattern}'`] };
+    }
+    if (kind === 'begin') { filter = 'begin'; beginAt = re; }
+    else filter = kind === 'include' ? (l) => re.test(l) : (l) => !re.test(l);
+    tokens = tokens.slice(0, bar);
+    if (!tokens.length) return { session: s, output: ['% Incomplete command.'] };
+  }
   let negate = false;
   if (mode !== 'user' && mode !== 'exec' && tokens[0].toLowerCase() === 'no' && tokens.length > 1) {
     // 'no auto-summary' is a command of its own in router rip mode
@@ -972,9 +991,14 @@ export function execute(session: CliSession, line: string, env: CliEnv): CliResu
   // In 'interface range' mode an interface command runs once per port, as if it were
   // typed under each 'interface' in turn. Mode commands (exit, end, interface) run once.
   const range = s.mode === 'if' && mode === 'if' && !r.cmd.modes.includes('config') ? s.rangeIds : undefined;
+  if (filter && r.cmd.words[0] !== 'show') return { session: s, output: ['% Output modifiers (| include, exclude, begin) work only after show commands'] };
   if (!range?.length) {
     r.cmd.run(ctx);
-    return { session: s, output: out };
+    if (filter === 'begin') {
+      const at = out.findIndex((l) => beginAt!.test(l));
+      return { session: s, output: at < 0 ? [] : out.slice(at) };
+    }
+    return { session: s, output: filter ? out.filter(filter) : out };
   }
   for (const id of range) {
     const from = out.length;

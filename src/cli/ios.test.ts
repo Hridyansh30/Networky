@@ -158,6 +158,18 @@ describe('configuring a router from the CLI', () => {
     expect(state.t.devices.R1.staticRoutes).toHaveLength(1);
   });
 
+  it('show output can be filtered with | include, exclude and begin', () => {
+    const { env } = envFor(lanRouter().t);
+    const run = (line: string) => type(env, 'R1', 'en', 'conf t', 'int g0/0', 'ip address 192.168.1.1 255.255.255.0', 'end', line).out.slice(1);
+    expect(run('show run | include 192')).toEqual([' ip address 192.168.1.1 255.255.255.0']);
+    expect(run('sh run | ex !').some((l) => l === '!')).toBe(false);
+    expect(run('show run | begin Serial0/0/1')[0]).toBe('interface Serial0/0/1');
+    expect(run('show run | include Nothing')).toEqual([]);
+    expect(run('show run | include ([')).toEqual(["% Invalid regular expression '(['"]);
+    expect(run('show run |')).toEqual(['% Usage: <show command> | include|exclude|begin <text>']);
+    expect(type(env, 'R1', 'en', 'conf t', 'hostname X | include a').out.at(-1)).toMatch(/work only after show commands/);
+  });
+
   it('the typo from the mockup ("address" without "ip") is invalid input', () => {
     const { env } = envFor(lanRouter().t);
     const { out } = type(env, 'R1', 'en', 'conf t', 'int g0/0', 'address 10.0.0.1 255.255.255.0');
