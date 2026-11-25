@@ -346,6 +346,14 @@ describe('host command prompt', () => {
     expect(out).toMatch(/1\s+Destination host unreachable\./);
   });
 
+  it('checks switches and ports the way Windows does', () => {
+    const { env } = envFor(lab);
+    expect(runHostCommand(pc('PC1'), 'ipconfig /bogus', env)[0]).toBe('Error: unrecognized or incomplete command line.');
+    expect(runHostCommand(pc('PC1'), 'connect 192.168.1.1 99999', env)).toEqual(['TCP ports run from 1 to 65535.']);
+    expect(runHostCommand(pc('PC1'), 'connect 192.168.1.1 0', env)).toEqual(['TCP ports run from 1 to 65535.']);
+    expect(runHostCommand(pc('PC1'), 'arp -A', env)).not.toEqual(['Usage: arp -a']);
+  });
+
   it('tracert lists hops; unknown commands are refused', () => {
     const { env } = envFor(lab);
     expect(runHostCommand(pc('PC2'), 'tracert 10.0.0.10', env).join('\n')).toMatch(/1\s+192\.168\.2\.1[\s\S]*2\s+10\.0\.0\.10/);

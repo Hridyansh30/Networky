@@ -87,6 +87,7 @@ export function runHostCommand(deviceId: string, line: string, env: CliEnv): str
     }
 
     case 'ipconfig': {
+      if (args[0] && args[0].toLowerCase() !== '/all') return ['Error: unrecognized or incomplete command line.', '', 'Usage: ipconfig [/all]'];
       const all = args[0]?.toLowerCase() === '/all';
       const out: string[] = [];
       for (const i of ifs) {
@@ -111,7 +112,7 @@ export function runHostCommand(deviceId: string, line: string, env: CliEnv): str
     }
 
     case 'arp': {
-      if (args[0] !== '-a') return ['Usage: arp -a'];
+      if (args[0]?.toLowerCase() !== '-a') return ['Usage: arp -a']; // Windows switches ignore case
       const entries = Object.entries(sim.arp[deviceId] ?? {});
       if (!entries.length) return ['No ARP Entries Found'];
       return ['  Internet Address      Physical Address      Type', ...entries.map(([ip, e]) => `  ${ip.padEnd(22)}${e.mac.replace(/:/g, '-').padEnd(22)}dynamic`)];
@@ -120,6 +121,7 @@ export function runHostCommand(deviceId: string, line: string, env: CliEnv): str
     case 'connect': {
       const port = Number(args[1]);
       if (!args[0] || !Number.isInteger(port)) return ['Usage: connect <address> <port>'];
+      if (port < 1 || port > 65535) return ['TCP ports run from 1 to 65535.'];
       const p = env.probe({ kind: 'tcp', sourceDeviceId: deviceId, destination: args[0], port });
       if (p.status === 'success') return [`Connected to ${args[0]}:${port} (SYN, SYN-ACK received).`];
       return [`Could not connect to ${args[0]}:${port}: ${p.detail ?? msg(p.status)}`];
